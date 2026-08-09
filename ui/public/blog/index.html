@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/opencontext-logo.png" />
+  <title>Blog — open-context</title>
+  <meta name="description" content="Guides on migrating AI chat history, setting up MCP persistent memory, and keeping your AI context portable and private across Claude, ChatGPT, and Gemini." />
+  <link rel="canonical" href="https://open-context.dev/blog/" />
+  <meta property="og:title" content="Blog — open-context" />
+  <meta property="og:description" content="Guides on migrating AI chat history, setting up MCP persistent memory, and keeping your AI context portable and private." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://open-context.dev/blog/" />
+  <meta property="og:image" content="https://open-context.dev/opencontext-logo.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Blog — open-context" />
+  <meta name="twitter:description" content="Guides on migrating AI chat history and keeping your AI context portable and private." />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    "name": "open-context Blog",
+    "url": "https://open-context.dev/blog/",
+    "description": "Guides on migrating AI chat history, setting up MCP persistent memory, and keeping your AI context portable and private.",
+    "publisher": {
+      "@type": "Organization",
+      "name": "open-context",
+      "logo": { "@type": "ImageObject", "url": "https://open-context.dev/opencontext-logo.png" }
+    }
+  }
+  </script>
+  <style>
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Regular-Trial-BF63f6cbd970ee9.otf') format('opentype'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Medium-Trial-BF63f6cbdb24b6d.otf') format('opentype'); font-weight: 500; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Bold-Trial-BF63f6cbda1877f.otf') format('opentype'); font-weight: 700; font-style: normal; }
+
+    :root {
+      --bg: #000000;
+      --card: #0a0a0a;
+      --border: #262626;
+      --fg: #fafafa;
+      --muted: #a1a1aa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Styrene A', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.6;
+    }
+    a { color: inherit; }
+    header {
+      position: sticky; top: 0; z-index: 40;
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 0.9rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(6px);
+    }
+    header .brand { display: flex; align-items: center; gap: 0.5rem; margin-right: auto; text-decoration: none; }
+    header .brand img { width: 32px; height: 32px; border-radius: 3px; }
+    header .brand span { font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em; }
+    header nav { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--muted); }
+    header nav a { text-decoration: none; }
+    header nav a:hover, header nav a.active { color: var(--fg); }
+    main { max-width: 760px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+    h1 { font-size: 2rem; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 0.5rem; }
+    main > p.lead { color: var(--muted); margin: 0 0 2.5rem; }
+    .post-list { display: flex; flex-direction: column; gap: 1rem; }
+    .post-card {
+      display: block; text-decoration: none;
+      border: 1px solid var(--border); border-radius: 10px;
+      background: var(--card);
+      padding: 1.25rem 1.5rem;
+      transition: border-color 0.15s;
+    }
+    .post-card:hover { border-color: #3f3f46; }
+    .post-card .date { font-size: 0.75rem; color: var(--muted); font-family: monospace; }
+    .post-card h2 { font-size: 1.15rem; font-weight: 600; margin: 0.35rem 0 0.5rem; letter-spacing: -0.01em; }
+    .post-card p { color: var(--muted); font-size: 0.9rem; margin: 0; }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem; display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 0.75rem;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    footer a { text-decoration: none; margin-left: 1rem; }
+    footer a:hover { color: var(--fg); }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">
+      <img src="/opencontext-logo.png" alt="open-context" />
+      <span>open-context</span>
+    </a>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/blog/" class="active">Blog</a>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <h1>Blog</h1>
+    <p class="lead">Guides on migrating AI chat history, setting up persistent memory with MCP, and keeping your AI context portable and private.</p>
+
+    <div class="post-list">
+      <a class="post-card" href="/blog/migrate-chatgpt-to-claude/">
+        <span class="date">August 8, 2026</span>
+        <h2>How to Migrate Your ChatGPT History to Claude (Free &amp; Local)</h2>
+        <p>A step-by-step guide to exporting your ChatGPT conversations and turning them into Claude-ready preferences, memory, and context — entirely on your own machine.</p>
+      </a>
+    </div>
+  </main>
+
+  <footer>
+    <span>open-context.dev — open source, self-hosted</span>
+    <div>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://hub.docker.com/r/adityakarnam/opencontext" target="_blank" rel="noopener noreferrer">Docker Hub</a>
+    </div>
+  </footer>
+</body>
+</html>

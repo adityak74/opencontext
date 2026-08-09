@@ -1,0 +1,20 @@
+{
+  "posts": [
+    {
+      "slug": "migrate-chatgpt-to-claude",
+      "title": "How to Migrate Your ChatGPT History to Claude (Free & Local)",
+      "publishedAt": "2026-08-08",
+      "topicTag": "migration-guide"
+    }
+  ],
+  "backlog": [
+    { "topicTag": "mcp-persistent-memory", "workingTitle": "How Claude's MCP Persistent Memory Works (and How to Set It Up)" },
+    { "topicTag": "chatgpt-export-guide", "workingTitle": "How to Export Your Full ChatGPT Conversation History" },
+    { "topicTag": "claude-preferences-setup", "workingTitle": "Claude Preferences vs Memory: What's the Difference and How to Use Both" },
+    { "topicTag": "self-hosted-ai-context", "workingTitle": "Why Self-Hosting Your AI Context Matters for Privacy" },
+    { "topicTag": "docker-mcp-server-setup", "workingTitle": "Running an MCP Server in Docker: A Practical Guide" },
+    { "topicTag": "gemini-to-claude-migration", "workingTitle": "Migrating from Google Gemini to Claude: What Transfers and What Doesn't" },
+    { "topicTag": "ai-context-portability", "workingTitle": "AI Context Portability: Why Vendor Lock-In Is an Unsolved Problem" },
+    { "topicTag": "bubbles-project-workspaces", "workingTitle": "Organizing AI Context by Project with open-context Bubbles" }
+  ]
+}
