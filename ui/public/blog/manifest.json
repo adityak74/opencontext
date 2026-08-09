@@ -5,10 +5,15 @@
       "title": "How to Migrate Your ChatGPT History to Claude (Free & Local)",
       "publishedAt": "2026-08-08",
       "topicTag": "migration-guide"
+    },
+    {
+      "slug": "mcp-persistent-memory",
+      "title": "How MCP Persistent Memory Works for Claude (Setup Guide)",
+      "publishedAt": "2026-08-09",
+      "topicTag": "mcp-persistent-memory"
     }
   ],
   "backlog": [
-    { "topicTag": "mcp-persistent-memory", "workingTitle": "How Claude's MCP Persistent Memory Works (and How to Set It Up)" },
     { "topicTag": "chatgpt-export-guide", "workingTitle": "How to Export Your Full ChatGPT Conversation History" },
     { "topicTag": "claude-preferences-setup", "workingTitle": "Claude Preferences vs Memory: What's the Difference and How to Use Both" },
     { "topicTag": "self-hosted-ai-context", "workingTitle": "Why Self-Hosting Your AI Context Matters for Privacy" },

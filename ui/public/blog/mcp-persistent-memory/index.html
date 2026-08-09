@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/opencontext-logo.png" />
+  <title>How MCP Persistent Memory Works for Claude (Setup Guide)</title>
+  <meta name="description" content="Claude's MCP persistent memory lets it save and recall context across conversations. See how the protocol works and set up a local MCP memory server in minutes." />
+  <link rel="canonical" href="https://open-context.dev/blog/mcp-persistent-memory/" />
+  <meta property="og:title" content="How MCP Persistent Memory Works for Claude (Setup Guide)" />
+  <meta property="og:description" content="Claude's MCP persistent memory lets it save and recall context across conversations. See how the protocol works and set up a local MCP memory server in minutes." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://open-context.dev/blog/mcp-persistent-memory/" />
+  <meta property="og:image" content="https://open-context.dev/opencontext-logo.png" />
+  <meta property="article:published_time" content="2026-08-09" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="How MCP Persistent Memory Works for Claude (Setup Guide)" />
+  <meta name="twitter:description" content="How Claude's MCP persistent memory works, and how to set up a local, file-based MCP memory server in minutes." />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BlogPosting",
+        "headline": "How MCP Persistent Memory Works for Claude (Setup Guide)",
+        "description": "Claude's MCP persistent memory lets it save and recall context across conversations. See how the protocol works and set up a local MCP memory server in minutes.",
+        "datePublished": "2026-08-09",
+        "dateModified": "2026-08-09",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://open-context.dev/blog/mcp-persistent-memory/" },
+        "image": "https://open-context.dev/opencontext-logo.png",
+        "author": { "@type": "Organization", "name": "open-context", "url": "https://open-context.dev/" },
+        "publisher": {
+          "@type": "Organization",
+          "name": "open-context",
+          "logo": { "@type": "ImageObject", "url": "https://open-context.dev/opencontext-logo.png" }
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What's the difference between MCP persistent memory and Claude's built-in Manage Memory?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Claude's Manage Memory field is populated manually — you paste text in, and it stays fixed until you edit it again. An MCP memory server lets Claude call save_context, recall_context, and related tools mid-conversation on its own, so memory updates automatically and is stored as a local file you fully control." }
+          },
+          {
+            "@type": "Question",
+            "name": "Do I need to restart Claude Code or Claude Desktop after adding an MCP server?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. Both read their MCP server configuration once at startup, so restart the app, or reload the Claude Code session, after editing settings.json or claude_desktop_config.json." }
+          },
+          {
+            "@type": "Question",
+            "name": "Where is open-context's MCP memory stored, and can I move it?",
+            "acceptedAnswer": { "@type": "Answer", "text": "By default in ~/.opencontext/contexts.json as plain JSON. Set the OPENCONTEXT_STORE_PATH environment variable to store it anywhere else, or mount a Docker volume to keep it outside the container entirely." }
+          },
+          {
+            "@type": "Question",
+            "name": "Does the open-context MCP server work with claude.ai in the browser?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Not directly. Local MCP servers like this one connect to clients that can launch local processes, such as Claude Code and Claude Desktop. The browser-based claude.ai app uses a separate remote-integration model that this file-based, self-hosted server doesn't target." }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  <style>
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Regular-Trial-BF63f6cbd970ee9.otf') format('opentype'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Medium-Trial-BF63f6cbdb24b6d.otf') format('opentype'); font-weight: 500; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Bold-Trial-BF63f6cbda1877f.otf') format('opentype'); font-weight: 700; font-style: normal; }
+
+    :root {
+      --bg: #000000;
+      --card: #0a0a0a;
+      --border: #262626;
+      --fg: #fafafa;
+      --muted: #a1a1aa;
+      --accent: #4ade80;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Styrene A', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.7;
+    }
+    a { color: inherit; }
+    header {
+      position: sticky; top: 0; z-index: 40;
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 0.9rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(6px);
+    }
+    header .brand { display: flex; align-items: center; gap: 0.5rem; margin-right: auto; text-decoration: none; }
+    header .brand img { width: 32px; height: 32px; border-radius: 3px; }
+    header .brand span { font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em; }
+    header nav { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--muted); }
+    header nav a { text-decoration: none; }
+    header nav a:hover, header nav a.active { color: var(--fg); }
+
+    main { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+    .meta { font-size: 0.8rem; color: var(--muted); font-family: monospace; margin-bottom: 0.75rem; }
+    h1 { font-size: 2.1rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; margin: 0 0 1.5rem; }
+    h2 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em; margin: 2.5rem 0 1rem; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 1.75rem 0 0.6rem; }
+    p { color: #e4e4e7; margin: 0 0 1.1rem; }
+    p.lead { font-size: 1.1rem; color: var(--fg); }
+    ul, ol { color: #e4e4e7; padding-left: 1.3rem; margin: 0 0 1.1rem; }
+    li { margin-bottom: 0.4rem; }
+    code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.4rem; font-size: 0.85em; }
+    pre { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; overflow-x: auto; font-size: 0.85rem; }
+    pre code { border: none; padding: 0; background: none; }
+    a.inline-link { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+    .takeaways {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0 2.5rem;
+    }
+    .takeaways p.label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; color: var(--accent); font-weight: 600; margin: 0 0 0.75rem; }
+    .takeaways ul { margin: 0; }
+    .table-wrap { overflow-x: auto; margin: 0 0 1.1rem; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+    th { color: var(--muted); font-weight: 600; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+    .cta {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin: 2.5rem 0;
+      text-align: center;
+    }
+    .cta a {
+      display: inline-block;
+      margin-top: 0.75rem;
+      background: var(--fg);
+      color: #000;
+      font-weight: 600;
+      padding: 0.55rem 1.25rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem; display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 0.75rem;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    footer a { text-decoration: none; margin-left: 1rem; }
+    footer a:hover { color: var(--fg); }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">
+      <img src="/opencontext-logo.png" alt="open-context" />
+      <span>open-context</span>
+    </a>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/blog/" class="active">Blog</a>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <article>
+      <div class="meta">August 9, 2026 · 6 min read</div>
+      <h1>How MCP Persistent Memory Works for Claude (Setup Guide)</h1>
+
+      <p class="lead">
+        Claude gets persistent memory through MCP (Model Context Protocol) by connecting to a small local
+        server that exposes save, recall, and search tools backed by a plain file on your machine. Once an
+        MCP memory server is configured, Claude can save a note mid-conversation and pull it back up in any
+        future session — no re-explaining context, no cloud storage, and no vendor lock-in.
+      </p>
+
+      <div class="takeaways">
+        <p class="label">Key takeaways</p>
+        <ul>
+          <li>MCP (Model Context Protocol) is an open standard <a class="inline-link" href="https://www.anthropic.com/news/model-context-protocol" target="_blank" rel="noopener noreferrer">Anthropic introduced in November 2024</a> for connecting AI models to external tools and data sources.</li>
+          <li>open-context's MCP server gives Claude six memory tools — <code>save_context</code>, <code>recall_context</code>, <code>list_contexts</code>, <code>search_contexts</code>, <code>update_context</code>, <code>delete_context</code> — plus project-style grouping via bubbles.</li>
+          <li>Memory is stored as a plain JSON file at <code>~/.opencontext/contexts.json</code>; nothing leaves your machine and no external API calls are made.</li>
+          <li>Setup takes one config block in <code>~/.claude/settings.json</code> or Claude Desktop's config, using either a local Node.js build or the official Docker image.</li>
+          <li>MCP-based memory is explicit and inspectable: Claude decides when to call a tool, and every saved entry is a readable, editable, deletable record — not a black box.</li>
+        </ul>
+      </div>
+
+      <h2>What "persistent memory" actually means for Claude</h2>
+      <p>
+        By default, every new Claude Code or Claude Desktop session starts with no knowledge of your past
+        sessions. If you told Claude last week that your team uses a monorepo with a specific deploy process,
+        that context is gone the next time you open a new conversation — unless you re-type it, or Claude has
+        some way to store and retrieve it on its own.
+      </p>
+      <p>
+        MCP closes that gap by giving Claude tools it can call directly, the same way it calls a file-read or
+        a shell command. Instead of you copying context back in every time, Claude decides in the moment
+        when something is worth saving and when it needs to look something up.
+      </p>
+
+      <h2>How MCP gives Claude a memory, without changing Claude itself</h2>
+      <p>
+        The <a class="inline-link" href="https://modelcontextprotocol.io/docs/getting-started/intro" target="_blank" rel="noopener noreferrer">Model Context Protocol</a>
+        is an open standard for connecting AI applications to external systems — data sources, tools, and
+        workflows — through one consistent interface instead of a custom integration per tool. An MCP server
+        is a small local process that advertises a list of typed tools; an MCP client (Claude Code, Claude
+        Desktop) launches that process, reads the tool list, and lets the model call those tools mid-conversation.
+        Memory isn't a Claude feature in this model — it's whatever the MCP server on the other end decides to
+        implement.
+      </p>
+      <p>open-context ships exactly this kind of server, purpose-built for memory rather than a specific API integration.</p>
+
+      <h3>The six memory tools open-context exposes</h3>
+      <ul>
+        <li><code>save_context</code> — saves a note, with optional tags and a source label, when you say things like "remember this."</li>
+        <li><code>recall_context</code> — full-text search across saved notes and tags, for "what did I say about…" questions.</li>
+        <li><code>list_contexts</code> — lists everything saved, optionally filtered by tag.</li>
+        <li><code>search_contexts</code> — multi-keyword AND search across all saved notes.</li>
+        <li><code>update_context</code> — edits an existing note's content or tags by ID.</li>
+        <li><code>delete_context</code> — removes a note by ID.</li>
+      </ul>
+      <p>
+        A parallel set of tools (<code>create_bubble</code>, <code>list_bubbles</code>, <code>get_bubble</code>) lets
+        Claude group related notes into "bubbles" — lightweight project workspaces — so memory for one codebase
+        doesn't bleed into memory for another.
+      </p>
+
+      <h2>Setting up the open-context MCP server</h2>
+      <p>The server runs as a local stdio process, so setup means adding one block to your MCP client's config file.</p>
+
+      <h3>Option A: Docker (no local build required)</h3>
+      <p>Add this to <code>~/.claude/settings.json</code> for Claude Code, or the equivalent Claude Desktop config:</p>
+      <pre><code>{
+  "mcpServers": {
+    "open-context": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "-v", "opencontext-data:/root/.opencontext",
+               "adityakarnam/open-context:latest", "node", "dist/mcp/index.js"]
+    }
+  }
+}</code></pre>
+      <p>The named volume keeps <code>contexts.json</code> outside the container, so it survives restarts and image updates.</p>
+
+      <h3>Option B: local Node.js build</h3>
+      <pre><code>git clone https://github.com/adityak74/opencontext.git
+cd opencontext
+npm install
+npm run build</code></pre>
+      <p>Then point your MCP client at the built entry file:</p>
+      <pre><code>{
+  "mcpServers": {
+    "open-context": {
+      "command": "node",
+      "args": ["/path/to/opencontext/dist/mcp/index.js"]
+    }
+  }
+}</code></pre>
+      <p>
+        Restart Claude Code or Claude Desktop after editing the config — MCP servers are read once at startup, so a
+        running session won't pick up a new one until it reloads.
+      </p>
+
+      <h2>What this looks like in practice</h2>
+      <p>
+        Mid-conversation, you might say "remember that this repo deploys via GitHub Actions on merge to main."
+        Claude calls <code>save_context</code> with that content and a tag like <code>deploy</code>. Weeks
+        later, in a completely new session, you ask "how does this repo deploy?" — Claude calls
+        <code>recall_context</code> or <code>search_contexts</code>, finds the saved note, and answers without
+        you repeating yourself.
+      </p>
+      <p>
+        This is a different workflow from the one-time <code>preferences.md</code> / <code>memory.md</code> paste
+        described in <a class="inline-link" href="/blog/migrate-chatgpt-to-claude/">our ChatGPT migration guide</a> —
+        that approach seeds Claude's native settings once from an old chat export; MCP memory keeps updating on
+        its own, going forward, through every future session.
+      </p>
+
+      <h2>Privacy: where the memory actually lives</h2>
+      <p>
+        Every entry <code>save_context</code> writes lands in one JSON file — <code>~/.opencontext/contexts.json</code>
+        by default, or a path you set with the <code>OPENCONTEXT_STORE_PATH</code> environment variable. The
+        MCP server makes no outbound network calls; it only reads and writes that local file. If you run it in
+        Docker, mounting a named volume keeps the store outside the container entirely, so you can inspect,
+        back up, or wipe it with ordinary file tools at any time.
+      </p>
+
+      <div class="cta">
+        <p style="margin:0; color: var(--muted);">Give Claude persistent memory in about five minutes.</p>
+        <a href="/">Set up open-context's MCP server →</a>
+      </div>
+
+      <h2>FAQ</h2>
+
+      <h3>What's the difference between MCP persistent memory and Claude's built-in Manage Memory?</h3>
+      <p>Claude's Manage Memory field is populated manually — you paste text in, and it stays fixed until you edit it again. An MCP memory server lets Claude call <code>save_context</code>, <code>recall_context</code>, and related tools mid-conversation on its own, so memory updates automatically and is stored as a local file you fully control.</p>
+
+      <h3>Do I need to restart Claude Code or Claude Desktop after adding an MCP server?</h3>
+      <p>Yes. Both read their MCP server configuration once at startup, so restart the app, or reload the Claude Code session, after editing <code>settings.json</code> or <code>claude_desktop_config.json</code>.</p>
+
+      <h3>Where is open-context's MCP memory stored, and can I move it?</h3>
+      <p>By default in <code>~/.opencontext/contexts.json</code> as plain JSON. Set the <code>OPENCONTEXT_STORE_PATH</code> environment variable to store it anywhere else, or mount a Docker volume to keep it outside the container entirely.</p>
+
+      <h3>Does the open-context MCP server work with claude.ai in the browser?</h3>
+      <p>Not directly. Local MCP servers like this one connect to clients that can launch local processes, such as Claude Code and Claude Desktop. The browser-based claude.ai app uses a separate remote-integration model that this file-based, self-hosted server doesn't target.</p>
+    </article>
+  </main>
+
+  <footer>
+    <span>open-context.dev — open source, self-hosted</span>
+    <div>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://hub.docker.com/r/adityakarnam/opencontext" target="_blank" rel="noopener noreferrer">Docker Hub</a>
+    </div>
+  </footer>
+</body>
+</html>
