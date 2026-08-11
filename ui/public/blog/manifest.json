@@ -11,10 +11,15 @@
       "title": "How MCP Persistent Memory Works for Claude (Setup Guide)",
       "publishedAt": "2026-08-09",
       "topicTag": "mcp-persistent-memory"
+    },
+    {
+      "slug": "chatgpt-export-guide",
+      "title": "How to Export Your Full ChatGPT Conversation History",
+      "publishedAt": "2026-08-11",
+      "topicTag": "chatgpt-export-guide"
     }
   ],
   "backlog": [
-    { "topicTag": "chatgpt-export-guide", "workingTitle": "How to Export Your Full ChatGPT Conversation History" },
     { "topicTag": "claude-preferences-setup", "workingTitle": "Claude Preferences vs Memory: What's the Difference and How to Use Both" },
     { "topicTag": "self-hosted-ai-context", "workingTitle": "Why Self-Hosting Your AI Context Matters for Privacy" },
     { "topicTag": "docker-mcp-server-setup", "workingTitle": "Running an MCP Server in Docker: A Practical Guide" },
