@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/opencontext-logo.png" />
+  <title>Claude Preferences vs Memory: What's the Difference</title>
+  <meta name="description" content="Claude's Instructions and Memory solve different problems: one is fixed, one auto-updates. Here's how each works, when to use which, and how to set up both." />
+  <link rel="canonical" href="https://open-context.dev/blog/claude-preferences-setup/" />
+  <meta property="og:title" content="Claude Preferences vs Memory: What's the Difference" />
+  <meta property="og:description" content="Claude's Instructions and Memory solve different problems: one is fixed, one auto-updates. Here's how each works, when to use which, and how to set up both." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://open-context.dev/blog/claude-preferences-setup/" />
+  <meta property="og:image" content="https://open-context.dev/opencontext-logo.png" />
+  <meta property="article:published_time" content="2026-08-13" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Claude Preferences vs Memory: What's the Difference" />
+  <meta name="twitter:description" content="Instructions for Claude is a fixed system prompt you write once. Memory is a running summary Claude writes on its own. Here's how to use both well." />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BlogPosting",
+        "headline": "Claude Preferences vs Memory: What's the Difference",
+        "description": "Claude's Instructions and Memory solve different problems: one is fixed, one auto-updates. Here's how each works, when to use which, and how to set up both.",
+        "datePublished": "2026-08-13",
+        "dateModified": "2026-08-13",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://open-context.dev/blog/claude-preferences-setup/" },
+        "image": "https://open-context.dev/opencontext-logo.png",
+        "author": { "@type": "Organization", "name": "open-context", "url": "https://open-context.dev/" },
+        "publisher": {
+          "@type": "Organization",
+          "name": "open-context",
+          "logo": { "@type": "ImageObject", "url": "https://open-context.dev/opencontext-logo.png" }
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What's the actual difference between Claude's Instructions and Memory?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Instructions for Claude is a fixed system prompt you write once in Settings and that stays identical in every chat. Memory is a running summary Claude writes itself from your conversations, so it changes over time without you editing it." }
+          },
+          {
+            "@type": "Question",
+            "name": "Do I need to fill in both Instructions and Memory?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No, but they work best together. Instructions cover stable preferences like tone and formatting, while Memory fills in with context that naturally changes, like your current project. Either one alone leaves gaps the other would cover." }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I see or delete what Claude remembers about me?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. Claude's Memory settings under Settings > Capabilities > Memory let you view, edit, or delete what's stored, and Claude tells you in the chat when it's drawing on a memory." }
+          },
+          {
+            "@type": "Question",
+            "name": "Is Claude's Memory feature available on the free plan?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. Anthropic rolled out Memory to all Claude.ai users, on both free and paid plans, starting in March 2026." }
+          },
+          {
+            "@type": "Question",
+            "name": "Is the open-context MCP server the same thing as Claude's Memory feature?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. Claude's native Memory is automatic and built into claude.ai. The open-context MCP server is a separate, local, tool-driven memory for Claude Code and Claude Desktop, where context is saved and recalled explicitly through save_context and recall_context calls against your own JSON store." }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  <style>
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Regular-Trial-BF63f6cbd970ee9.otf') format('opentype'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Medium-Trial-BF63f6cbdb24b6d.otf') format('opentype'); font-weight: 500; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Bold-Trial-BF63f6cbda1877f.otf') format('opentype'); font-weight: 700; font-style: normal; }
+
+    :root {
+      --bg: #000000;
+      --card: #0a0a0a;
+      --border: #262626;
+      --fg: #fafafa;
+      --muted: #a1a1aa;
+      --accent: #4ade80;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Styrene A', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.7;
+    }
+    a { color: inherit; }
+    header {
+      position: sticky; top: 0; z-index: 40;
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 0.9rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(6px);
+    }
+    header .brand { display: flex; align-items: center; gap: 0.5rem; margin-right: auto; text-decoration: none; }
+    header .brand img { width: 32px; height: 32px; border-radius: 3px; }
+    header .brand span { font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em; }
+    header nav { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--muted); }
+    header nav a { text-decoration: none; }
+    header nav a:hover, header nav a.active { color: var(--fg); }
+
+    main { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+    .meta { font-size: 0.8rem; color: var(--muted); font-family: monospace; margin-bottom: 0.75rem; }
+    h1 { font-size: 2.1rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; margin: 0 0 1.5rem; }
+    h2 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em; margin: 2.5rem 0 1rem; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 1.75rem 0 0.6rem; }
+    p { color: #e4e4e7; margin: 0 0 1.1rem; }
+    p.lead { font-size: 1.1rem; color: var(--fg); }
+    ul, ol { color: #e4e4e7; padding-left: 1.3rem; margin: 0 0 1.1rem; }
+    li { margin-bottom: 0.4rem; }
+    code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.4rem; font-size: 0.85em; }
+    pre { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; overflow-x: auto; font-size: 0.85rem; }
+    pre code { border: none; padding: 0; background: none; }
+    a.inline-link { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+    .takeaways {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0 2.5rem;
+    }
+    .takeaways p.label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; color: var(--accent); font-weight: 600; margin: 0 0 0.75rem; }
+    .takeaways ul { margin: 0; }
+    .table-wrap { overflow-x: auto; margin: 0 0 1.1rem; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+    th { color: var(--muted); font-weight: 600; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+    .cta {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin: 2.5rem 0;
+      text-align: center;
+    }
+    .cta a {
+      display: inline-block;
+      margin-top: 0.75rem;
+      background: var(--fg);
+      color: #000;
+      font-weight: 600;
+      padding: 0.55rem 1.25rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem; display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 0.75rem;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    footer a { text-decoration: none; margin-left: 1rem; }
+    footer a:hover { color: var(--fg); }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">
+      <img src="/opencontext-logo.png" alt="open-context" />
+      <span>open-context</span>
+    </a>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/blog/" class="active">Blog</a>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <article>
+      <div class="meta">August 13, 2026 · 6 min read</div>
+      <h1>Claude Preferences vs Memory: What's the Difference</h1>
+
+      <p class="lead">
+        Claude has two separate personalization systems that solve different problems. <strong>Instructions
+        for Claude</strong> (Settings → Profile) is a fixed system prompt you write once, and it stays
+        identical in every chat until you change it. <strong>Memory</strong> (Settings → Capabilities →
+        Memory) is a running summary Claude writes on its own from your conversations, so it evolves without
+        you touching it. Use Instructions for things that rarely change — tone, formatting, your technical
+        background — and let Memory handle the things that do, like what you're currently working on.
+      </p>
+
+      <div class="takeaways">
+        <p class="label">Key takeaways</p>
+        <ul>
+          <li>Instructions for Claude is a static, user-written system prompt under Settings → General → Profile that loads into every new chat automatically.</li>
+          <li>Memory, rolled out to all Claude.ai users — free and paid — starting in March 2026, is Claude's own auto-generated summary of past conversations, managed under Settings → Capabilities → Memory.</li>
+          <li>Instructions suit stable preferences (communication style, formatting, expertise level); Memory suits context that naturally changes (active projects, recent decisions, current focus).</li>
+          <li>open-context's Claude exporter generates two separate files that map directly onto these two systems: <code>claude-preferences.md</code> for Instructions and <code>claude-memory.md</code> for Memory.</li>
+          <li>Neither is the same as the open-context <a class="inline-link" href="/blog/mcp-persistent-memory/">MCP server</a>, which gives Claude Code and Claude Desktop a separate, locally-stored memory driven by explicit tool calls.</li>
+        </ul>
+      </div>
+
+      <h2>Two systems, two different jobs</h2>
+      <p>
+        It's easy to assume "preferences" and "memory" are just two names for the same thing. They're not.
+        Instructions is declarative — you decide exactly what goes in, and it never changes unless you edit
+        it yourself. Memory is inferred — Claude decides what's worth keeping based on what you actually
+        talk about, and it keeps updating as new conversations happen. One is a rulebook you author; the
+        other is a notebook Claude keeps for itself.
+      </p>
+      <p>
+        Mixing them up is the most common reason people feel like Claude "forgets" things. If you write your
+        current sprint goal into Instructions, it'll sit there unchanged next quarter, looking wrong. If you
+        expect Memory to enforce a formatting rule, it might not — Memory is built to summarize context, not
+        act as a fixed style guide.
+      </p>
+
+      <h2>Instructions for Claude: the part you write</h2>
+      <p>
+        Instructions for Claude lives under your account initials → Settings → General → Profile, in a field
+        labeled "Instructions for Claude" (an older version of the UI called this field "Profile"). Whatever
+        you put there becomes an account-wide system prompt: Claude keeps it in mind across every new chat,
+        with no need to reference or re-paste it.
+      </p>
+      <p>
+        This is the right place for anything you'd otherwise repeat at the start of every conversation —
+        your preferred tone, whether you want code examples by default, how much detail you expect, and
+        background like your role or primary tech stack. Specific instructions work better than vague ones:
+        "keep responses concise" is weaker guidance than a concrete constraint Claude can actually apply
+        consistently.
+      </p>
+
+      <h2>Memory: what Claude remembers on its own</h2>
+      <p>
+        Memory is the newer of the two features. Claude periodically distills your conversations into a
+        running summary — things like your current projects, recurring topics, and context you've mentioned
+        in passing — and stores that summary rather than a raw transcript. You can review, edit, or delete
+        what's stored at any time under Settings → Capabilities → Memory, and Claude tells you in the chat
+        when it's actually drawing on a memory, so it isn't a black box.
+      </p>
+      <p>
+        Because Memory is generated from what you actually discuss, it's naturally suited to context that
+        shifts over time: the project you're heads-down on this month, a decision you made last week, a
+        detail from a conversation three days ago that's still relevant today.
+      </p>
+
+      <h2>Deciding what goes where</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>What you want Claude to know</th><th>Where it belongs</th></tr></thead>
+          <tbody>
+            <tr><td>Preferred tone and formatting</td><td>Instructions</td></tr>
+            <tr><td>Primary languages, frameworks, experience level</td><td>Instructions</td></tr>
+            <tr><td>Standing rules ("always warn me about breaking changes")</td><td>Instructions</td></tr>
+            <tr><td>Active project or current sprint</td><td>Memory</td></tr>
+            <tr><td>A decision or detail from a recent conversation</td><td>Memory</td></tr>
+            <tr><td>Something relevant to only this one chat</td><td>Neither — just say it in the chat</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Setting up both with open-context</h2>
+      <p>
+        If you're migrating from another AI provider, you already have the raw material for both — it's
+        just scattered across old conversations instead of organized. <a class="inline-link" href="/">open-context</a>'s
+        preferences editor covers six sections (communication style, technical profile, work context,
+        personal context, current focus, and behavior preferences), and its Claude exporter turns that into
+        two separate, ready-to-paste files:
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Generated file</th><th>Paste into</th></tr></thead>
+          <tbody>
+            <tr><td><code>claude-preferences.md</code></td><td>Settings → General → Profile → Instructions for Claude</td></tr>
+            <tr><td><code>claude-memory.md</code></td><td>Settings → Capabilities → Memory</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        The split isn't arbitrary — the preferences file is built entirely from stable fields (tone, detail
+        level, technical profile), while the memory file is built from the fields that describe your current
+        state (active projects, goals, recent conversation topics), which is exactly the kind of context
+        Memory is designed to hold. If you're starting from a ChatGPT export, the full walkthrough is in the
+        <a class="inline-link" href="/blog/migrate-chatgpt-to-claude/">ChatGPT-to-Claude migration guide</a>.
+      </p>
+
+      <h2>Don't confuse this with the open-context MCP server</h2>
+      <p>
+        There's a third, unrelated layer worth naming so it doesn't get conflated with the two above:
+        open-context also ships an <a class="inline-link" href="https://modelcontextprotocol.io/" target="_blank" rel="noopener noreferrer">MCP</a>
+        server for Claude Code and Claude Desktop. It's explicit rather than automatic — Claude calls
+        <code>save_context</code> and <code>recall_context</code> tools against your own local JSON store at
+        <code>~/.opencontext/contexts.json</code>, entirely separate from claude.ai's account-level Memory.
+        It's a good fit for developer workflows where you want context to persist across CLI sessions, not a
+        replacement for either Instructions or Memory. More on that in the
+        <a class="inline-link" href="/blog/mcp-persistent-memory/">MCP persistent memory guide</a>.
+      </p>
+
+      <h2>Privacy: what stays where</h2>
+      <p>
+        Instructions and Memory both live in your Anthropic account, subject to Anthropic's own data
+        handling. open-context's job stops at generating the files — it runs entirely on your machine, and
+        the only network call it can make is to a local Ollama instance if you opt into AI-assisted
+        preference generation. Nothing about your conversation history is uploaded anywhere by open-context
+        itself.
+      </p>
+
+      <div class="cta">
+        <p style="margin:0; color: var(--muted);">Generate your own Instructions and Memory files in about five minutes.</p>
+        <a href="/">Get started with open-context →</a>
+      </div>
+
+      <h2>FAQ</h2>
+
+      <h3>What's the actual difference between Claude's Instructions and Memory?</h3>
+      <p>Instructions for Claude is a fixed system prompt you write once in Settings and that stays identical in every chat. Memory is a running summary Claude writes itself from your conversations, so it changes over time without you editing it.</p>
+
+      <h3>Do I need to fill in both Instructions and Memory?</h3>
+      <p>No, but they work best together. Instructions cover stable preferences like tone and formatting, while Memory fills in with context that naturally changes, like your current project. Either one alone leaves gaps the other would cover.</p>
+
+      <h3>Can I see or delete what Claude remembers about me?</h3>
+      <p>Yes. Claude's Memory settings under Settings → Capabilities → Memory let you view, edit, or delete what's stored, and Claude tells you in the chat when it's drawing on a memory.</p>
+
+      <h3>Is Claude's Memory feature available on the free plan?</h3>
+      <p>Yes. Anthropic rolled out Memory to all Claude.ai users, on both free and paid plans, starting in March 2026.</p>
+
+      <h3>Is the open-context MCP server the same thing as Claude's Memory feature?</h3>
+      <p>No. Claude's native Memory is automatic and built into claude.ai. The open-context MCP server is a separate, local, tool-driven memory for Claude Code and Claude Desktop, where context is saved and recalled explicitly through <code>save_context</code> and <code>recall_context</code> calls against your own JSON store.</p>
+    </article>
+  </main>
+
+  <footer>
+    <span>open-context.dev — open source, self-hosted</span>
+    <div>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://hub.docker.com/r/adityakarnam/opencontext" target="_blank" rel="noopener noreferrer">Docker Hub</a>
+    </div>
+  </footer>
+</body>
+</html>
