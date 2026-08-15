@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/opencontext-logo.png" />
+  <title>Why Self-Hosting Your AI Context Matters for Privacy</title>
+  <meta name="description" content="Self-hosted AI context tools like open-context keep your chat history off third-party servers, avoiding AI model training and data retention risk entirely." />
+  <link rel="canonical" href="https://open-context.dev/blog/self-hosted-ai-context/" />
+  <meta property="og:title" content="Why Self-Hosting Your AI Context Matters for Privacy" />
+  <meta property="og:description" content="Self-hosted AI context tools like open-context keep your chat history off third-party servers, avoiding AI model training and data retention risk entirely." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://open-context.dev/blog/self-hosted-ai-context/" />
+  <meta property="og:image" content="https://open-context.dev/opencontext-logo.png" />
+  <meta property="article:published_time" content="2026-08-15" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Why Self-Hosting Your AI Context Matters for Privacy" />
+  <meta name="twitter:description" content="Cloud AI providers set the rules for your chat history. Self-hosting your AI context puts those rules back in your hands — here's how and what it costs." />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BlogPosting",
+        "headline": "Why Self-Hosting Your AI Context Matters for Privacy",
+        "description": "Self-hosted AI context tools like open-context keep your chat history off third-party servers, avoiding AI model training and data retention risk entirely.",
+        "datePublished": "2026-08-15",
+        "dateModified": "2026-08-15",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://open-context.dev/blog/self-hosted-ai-context/" },
+        "image": "https://open-context.dev/opencontext-logo.png",
+        "author": { "@type": "Organization", "name": "open-context", "url": "https://open-context.dev/" },
+        "publisher": {
+          "@type": "Organization",
+          "name": "open-context",
+          "logo": { "@type": "ImageObject", "url": "https://open-context.dev/opencontext-logo.png" }
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Does self-hosting my AI context mean I stop using Claude or ChatGPT in the cloud?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. Self-hosting your context and using a cloud AI assistant aren't mutually exclusive. open-context stores and prepares your preferences, memory, and conversation history locally, then you paste or connect that context into whichever cloud assistant you're using — the assistant itself can still run in the cloud." }
+          },
+          {
+            "@type": "Question",
+            "name": "Do I need a powerful machine to self-host open-context?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. The core conversion, storage, and MCP server run comfortably on a laptop with no GPU. A capable machine only matters if you enable optional AI-powered preference analysis via Ollama, which benefits from more RAM and a GPU for larger models." }
+          },
+          {
+            "@type": "Question",
+            "name": "Is self-hosted AI context the same as running a local LLM?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. open-context itself is not a language model — it's a converter and a local memory store. It only talks to a language model (Ollama, running locally) if you opt into AI-generated preference and memory summaries; skip that flag and no model is involved at all." }
+          },
+          {
+            "@type": "Question",
+            "name": "Can self-hosted context sync across multiple devices?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Not automatically. Self-hosting trades vendor-managed sync for full control — if you want your context.json store available on more than one machine, you're responsible for that, for example by mounting the same Docker volume on a home server or syncing the file yourself." }
+          },
+          {
+            "@type": "Question",
+            "name": "Is open-context affiliated with Anthropic or OpenAI?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. open-context is an independent, community-built, open source tool. It is not affiliated with, endorsed by, or built by Anthropic or OpenAI." }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  <style>
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Regular-Trial-BF63f6cbd970ee9.otf') format('opentype'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Medium-Trial-BF63f6cbdb24b6d.otf') format('opentype'); font-weight: 500; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Bold-Trial-BF63f6cbda1877f.otf') format('opentype'); font-weight: 700; font-style: normal; }
+
+    :root {
+      --bg: #000000;
+      --card: #0a0a0a;
+      --border: #262626;
+      --fg: #fafafa;
+      --muted: #a1a1aa;
+      --accent: #4ade80;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Styrene A', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.7;
+    }
+    a { color: inherit; }
+    header {
+      position: sticky; top: 0; z-index: 40;
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 0.9rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(6px);
+    }
+    header .brand { display: flex; align-items: center; gap: 0.5rem; margin-right: auto; text-decoration: none; }
+    header .brand img { width: 32px; height: 32px; border-radius: 3px; }
+    header .brand span { font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em; }
+    header nav { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--muted); }
+    header nav a { text-decoration: none; }
+    header nav a:hover, header nav a.active { color: var(--fg); }
+
+    main { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+    .meta { font-size: 0.8rem; color: var(--muted); font-family: monospace; margin-bottom: 0.75rem; }
+    h1 { font-size: 2.1rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; margin: 0 0 1.5rem; }
+    h2 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em; margin: 2.5rem 0 1rem; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 1.75rem 0 0.6rem; }
+    p { color: #e4e4e7; margin: 0 0 1.1rem; }
+    p.lead { font-size: 1.1rem; color: var(--fg); }
+    ul, ol { color: #e4e4e7; padding-left: 1.3rem; margin: 0 0 1.1rem; }
+    li { margin-bottom: 0.4rem; }
+    code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.4rem; font-size: 0.85em; }
+    pre { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; overflow-x: auto; font-size: 0.85rem; }
+    pre code { border: none; padding: 0; background: none; }
+    a.inline-link { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+    .takeaways {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0 2.5rem;
+    }
+    .takeaways p.label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; color: var(--accent); font-weight: 600; margin: 0 0 0.75rem; }
+    .takeaways ul { margin: 0; }
+    .table-wrap { overflow-x: auto; margin: 0 0 1.1rem; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+    th { color: var(--muted); font-weight: 600; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+    .cta {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin: 2.5rem 0;
+      text-align: center;
+    }
+    .cta a {
+      display: inline-block;
+      margin-top: 0.75rem;
+      background: var(--fg);
+      color: #000;
+      font-weight: 600;
+      padding: 0.55rem 1.25rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem; display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 0.75rem;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    footer a { text-decoration: none; margin-left: 1rem; }
+    footer a:hover { color: var(--fg); }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">
+      <img src="/opencontext-logo.png" alt="open-context" />
+      <span>open-context</span>
+    </a>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/blog/" class="active">Blog</a>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <article>
+      <div class="meta">August 15, 2026 · 6 min read</div>
+      <h1>Why Self-Hosting Your AI Context Matters for Privacy</h1>
+
+      <p class="lead">
+        Self-hosting your AI context means the tool that stores your chat history, preferences, and memory
+        runs on infrastructure you control — your own laptop, your own Docker container, your own file on
+        disk — instead of a vendor's cloud. It matters because cloud AI providers set the rules for what
+        happens to your conversations by default, including whether they're used for model training and how
+        long they're retained after you try to delete them. A self-hosted tool like
+        <a class="inline-link" href="/">open-context</a> sidesteps that entirely: your context never leaves
+        your machine unless you explicitly send it somewhere.
+      </p>
+
+      <div class="takeaways">
+        <p class="label">Key takeaways</p>
+        <ul>
+          <li>Cloud AI providers can use free and Plus-tier conversations to train models unless you manually opt out in account settings, and may still retain data for a period afterward for abuse review.</li>
+          <li>Self-hosting means your AI memory lives on infrastructure you control from the start — there's no vendor retention policy to read or opt-out toggle to remember.</li>
+          <li>open-context's MCP context store is a plain JSON file at <code>~/.opencontext/contexts.json</code>, with zero outbound network calls unless you explicitly enable Ollama.</li>
+          <li>GDPR's Article 20 data portability right exists precisely because most AI data lives on someone else's servers — self-hosting is a structural way to avoid ever needing to invoke it.</li>
+          <li>Self-hosting trades vendor-managed convenience — backups, sync, uptime — for full control. You take on the responsibility that a cloud provider would otherwise carry.</li>
+        </ul>
+      </div>
+
+      <h2>What "self-hosting your AI context" actually means</h2>
+      <p>
+        Most AI assistants store your history, preferences, and memory on the vendor's servers by default —
+        that's what makes them work across your devices without you thinking about it. Self-hosting flips
+        that: the storage layer runs on hardware you control instead. Concretely, for
+        <a class="inline-link" href="/">open-context</a> that means running the CLI, the Docker image, or the
+        local dev server on your own machine, with everything written to <code>~/.opencontext/</code> — a
+        directory on your filesystem, not a database in someone else's data center.
+      </p>
+      <p>
+        This applies to two different kinds of AI context: the one-time import of history from a provider
+        like ChatGPT, and the ongoing memory an MCP server gives Claude across future conversations. Both
+        can be self-hosted the same way.
+      </p>
+
+      <h2>The privacy problem with cloud-hosted AI memory</h2>
+      <p>
+        When your context lives on a vendor's servers, the vendor's policies — not yours — decide what
+        happens to it. As of 2026, OpenAI's own data controls describe this clearly for ChatGPT: on Free and
+        Plus plans, conversations can be used to improve the model unless you turn off "Improve the model
+        for everyone" in Settings, and even with that setting off, messages can still be retained for a
+        period (OpenAI cites roughly 30 days) for abuse monitoring and legal compliance before deletion.
+        Team, Enterprise, and API usage are excluded from training by default, but that's a plan-level
+        distinction you have to know to select.
+      </p>
+      <p>
+        None of this makes any one vendor unusually bad — it's structural. Any time your chat history sits
+        on infrastructure you don't operate, you're relying on a policy toggle and a retention window that
+        can change, rather than on the simple fact that the data was never sent off your machine.
+      </p>
+
+      <h2>Why local-first architecture changes the risk model</h2>
+      <p>
+        Self-hosted tools remove the policy question by removing the transfer. open-context is built local
+        by default: conversion, preference storage, and the MCP context store all run as a process on your
+        machine, writing to files you own. The MCP server that gives Claude persistent memory stores every
+        <code>save_context</code> entry in <code>~/.opencontext/contexts.json</code> — a plain JSON file, not
+        a hosted database — and the only network call the whole system can make is to an Ollama instance you
+        point it at, and only if you turn on AI-powered preference analysis.
+      </p>
+      <p>
+        Skip that flag with <code>--skip-preferences</code>, and the entire pipeline, from ChatGPT export to
+        Claude-ready markdown, never touches the network at all. There's no training opt-out to configure
+        because there's no training happening on your data in the first place.
+      </p>
+
+      <h2>What self-hosting looks like in practice</h2>
+      <p>The official Docker image is the fastest path — it bundles the web UI, REST API, and MCP server into one container:</p>
+      <pre><code>docker run -p 3000:3000 \
+  -v opencontext-data:/root/.opencontext \
+  adityakarnam/open-context:latest</code></pre>
+      <p>
+        Everything the app reads and writes lives in that mounted volume, not in browser storage and not on
+        a remote server. If you'd rather run persistent memory for Claude specifically, the same image runs
+        in MCP stdio mode — see the
+        <a class="inline-link" href="/blog/mcp-persistent-memory/">MCP persistent memory setup guide</a> for
+        the full walkthrough of connecting it to Claude Code or Claude Desktop.
+      </p>
+
+      <h2>The trade-offs: what you give up by self-hosting</h2>
+      <p>
+        Self-hosting isn't free of cost, it just moves the cost. A cloud provider's infrastructure team
+        handles backups, uptime, and cross-device sync so you don't have to think about them. When you
+        self-host, those responsibilities move to you:
+      </p>
+      <ul>
+        <li><strong>Backups</strong> — <code>contexts.json</code> and your preferences files are only as safe as your own backup habits. Nothing automatically copies them elsewhere.</li>
+        <li><strong>Cross-device sync</strong> — running open-context on two machines gives you two separate context stores unless you deliberately share the volume or sync the file yourself.</li>
+        <li><strong>Hardware for AI analysis</strong> — the optional AI-generated preferences and memory summaries run through Ollama locally, and larger models (13–40GB) need real RAM or a GPU to run at reasonable speed. Skipping AI analysis avoids this entirely and still produces a full markdown conversion.</li>
+      </ul>
+      <p>
+        For most people evaluating whether to self-host their AI context, this is the actual trade: less
+        convenience, more certainty about where the data sits.
+      </p>
+
+      <h2>Self-hosting and your legal right to your own data</h2>
+      <p>
+        Regulations like the GDPR's Article 20 give EU users a right to data portability — to receive their
+        personal data from a service in a structured, machine-readable format, and to move it elsewhere.
+        That right exists because, by default, most of your data lives with a controller who isn't you, and
+        getting it back requires a formal request. Self-hosting doesn't replace that right, but it sidesteps
+        the need to exercise it for AI context specifically: if the data was written to your own disk from
+        the start, there's no request to make and no month-long response window to wait on.
+      </p>
+
+      <div class="cta">
+        <p style="margin:0; color: var(--muted);">Keep your AI context on your own machine, from import to memory.</p>
+        <a href="/">Get started with open-context →</a>
+      </div>
+
+      <h2>FAQ</h2>
+
+      <h3>Does self-hosting my AI context mean I stop using Claude or ChatGPT in the cloud?</h3>
+      <p>No. Self-hosting your context and using a cloud AI assistant aren't mutually exclusive. open-context stores and prepares your preferences, memory, and conversation history locally, then you paste or connect that context into whichever cloud assistant you're using — the assistant itself can still run in the cloud.</p>
+
+      <h3>Do I need a powerful machine to self-host open-context?</h3>
+      <p>No. The core conversion, storage, and MCP server run comfortably on a laptop with no GPU. A capable machine only matters if you enable optional AI-powered preference analysis via Ollama, which benefits from more RAM and a GPU for larger models.</p>
+
+      <h3>Is self-hosted AI context the same as running a local LLM?</h3>
+      <p>No. open-context itself is not a language model — it's a converter and a local memory store. It only talks to a language model (Ollama, running locally) if you opt into AI-generated preference and memory summaries; skip that flag and no model is involved at all.</p>
+
+      <h3>Can self-hosted context sync across multiple devices?</h3>
+      <p>Not automatically. Self-hosting trades vendor-managed sync for full control — if you want your context.json store available on more than one machine, you're responsible for that, for example by mounting the same Docker volume on a home server or syncing the file yourself.</p>
+
+      <h3>Is open-context affiliated with Anthropic or OpenAI?</h3>
+      <p>No. open-context is an independent, community-built, open source tool. It is not affiliated with, endorsed by, or built by Anthropic or OpenAI.</p>
+    </article>
+  </main>
+
+  <footer>
+    <span>open-context.dev — open source, self-hosted</span>
+    <div>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://hub.docker.com/r/adityakarnam/opencontext" target="_blank" rel="noopener noreferrer">Docker Hub</a>
+    </div>
+  </footer>
+</body>
+</html>

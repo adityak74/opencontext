@@ -23,10 +23,15 @@
       "title": "Claude Preferences vs Memory: What's the Difference",
       "publishedAt": "2026-08-13",
       "topicTag": "claude-preferences-setup"
+    },
+    {
+      "slug": "self-hosted-ai-context",
+      "title": "Why Self-Hosting Your AI Context Matters for Privacy",
+      "publishedAt": "2026-08-15",
+      "topicTag": "self-hosted-ai-context"
     }
   ],
   "backlog": [
-    { "topicTag": "self-hosted-ai-context", "workingTitle": "Why Self-Hosting Your AI Context Matters for Privacy" },
     { "topicTag": "docker-mcp-server-setup", "workingTitle": "Running an MCP Server in Docker: A Practical Guide" },
     { "topicTag": "gemini-to-claude-migration", "workingTitle": "Migrating from Google Gemini to Claude: What Transfers and What Doesn't" },
     { "topicTag": "ai-context-portability", "workingTitle": "AI Context Portability: Why Vendor Lock-In Is an Unsolved Problem" },
