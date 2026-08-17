@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/opencontext-logo.png" />
+  <title>Running an MCP Server in Docker: A Practical Guide</title>
+  <meta name="description" content="How to run open-context's MCP server in Docker: image layout, persistent volumes, environment variables, and Claude Desktop or Claude Code setup steps." />
+  <link rel="canonical" href="https://open-context.dev/blog/docker-mcp-server-setup/" />
+  <meta property="og:title" content="Running an MCP Server in Docker: A Practical Guide" />
+  <meta property="og:description" content="How to run open-context's MCP server in Docker: image layout, persistent volumes, environment variables, and Claude Desktop or Claude Code setup steps." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://open-context.dev/blog/docker-mcp-server-setup/" />
+  <meta property="og:image" content="https://open-context.dev/opencontext-logo.png" />
+  <meta property="article:published_time" content="2026-08-17" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Running an MCP Server in Docker: A Practical Guide" />
+  <meta name="twitter:description" content="Image layout, persistent volumes, environment variables, and Claude Desktop / Claude Code config for running an MCP server in Docker." />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BlogPosting",
+        "headline": "Running an MCP Server in Docker: A Practical Guide",
+        "description": "How to run open-context's MCP server in Docker: image layout, persistent volumes, environment variables, and Claude Desktop or Claude Code setup steps.",
+        "datePublished": "2026-08-17",
+        "dateModified": "2026-08-17",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://open-context.dev/blog/docker-mcp-server-setup/" },
+        "image": "https://open-context.dev/opencontext-logo.png",
+        "author": { "@type": "Organization", "name": "open-context", "url": "https://open-context.dev/" },
+        "publisher": {
+          "@type": "Organization",
+          "name": "open-context",
+          "logo": { "@type": "ImageObject", "url": "https://open-context.dev/opencontext-logo.png" }
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Do I need to build the Docker image myself?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. adityakarnam/open-context:latest is published on Docker Hub, so docker pull adityakarnam/open-context:latest gets you a working image without cloning the repo or running a build." }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I switch the same image between the web UI and MCP stdio mode?",
+            "acceptedAnswer": { "@type": "Answer", "text": "The image's default command runs the HTTP server (node dist/server.js) on port 3000. Override the command with node dist/mcp/index.js and pass -i to docker run to get MCP stdio mode instead — no separate image is needed." }
+          },
+          {
+            "@type": "Question",
+            "name": "Why can't my containerized MCP server reach Ollama on the host?",
+            "acceptedAnswer": { "@type": "Answer", "text": "On Docker Desktop (Mac/Windows), host.docker.internal resolves automatically. On Linux it doesn't by default — add --add-host=host.docker.internal:host-gateway to your docker run command, or set OLLAMA_HOST to your host machine's LAN IP." }
+          },
+          {
+            "@type": "Question",
+            "name": "Will I lose my saved contexts if I update the image?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No, as long as you mount a named volume at /root/.opencontext. The contexts.json file, preferences, and generated memory docs live in that volume, not in the container's writable layer, so pulling a new image tag and restarting the container preserves them." }
+          },
+          {
+            "@type": "Question",
+            "name": "Does the MCP server need internet access to run in Docker?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. The MCP server itself only reads and writes its local JSON store. The container makes no outbound calls unless you separately enable Ollama-based preference analysis, which is optional and stays on your own network." }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  <style>
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Regular-Trial-BF63f6cbd970ee9.otf') format('opentype'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Medium-Trial-BF63f6cbdb24b6d.otf') format('opentype'); font-weight: 500; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Bold-Trial-BF63f6cbda1877f.otf') format('opentype'); font-weight: 700; font-style: normal; }
+
+    :root {
+      --bg: #000000;
+      --card: #0a0a0a;
+      --border: #262626;
+      --fg: #fafafa;
+      --muted: #a1a1aa;
+      --accent: #4ade80;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Styrene A', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.7;
+    }
+    a { color: inherit; }
+    header {
+      position: sticky; top: 0; z-index: 40;
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 0.9rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(6px);
+    }
+    header .brand { display: flex; align-items: center; gap: 0.5rem; margin-right: auto; text-decoration: none; }
+    header .brand img { width: 32px; height: 32px; border-radius: 3px; }
+    header .brand span { font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em; }
+    header nav { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--muted); }
+    header nav a { text-decoration: none; }
+    header nav a:hover, header nav a.active { color: var(--fg); }
+
+    main { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+    .meta { font-size: 0.8rem; color: var(--muted); font-family: monospace; margin-bottom: 0.75rem; }
+    h1 { font-size: 2.1rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; margin: 0 0 1.5rem; }
+    h2 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em; margin: 2.5rem 0 1rem; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 1.75rem 0 0.6rem; }
+    p { color: #e4e4e7; margin: 0 0 1.1rem; }
+    p.lead { font-size: 1.1rem; color: var(--fg); }
+    ul, ol { color: #e4e4e7; padding-left: 1.3rem; margin: 0 0 1.1rem; }
+    li { margin-bottom: 0.4rem; }
+    code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.4rem; font-size: 0.85em; }
+    pre { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; overflow-x: auto; font-size: 0.85rem; }
+    pre code { border: none; padding: 0; background: none; }
+    a.inline-link { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+    .takeaways {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0 2.5rem;
+    }
+    .takeaways p.label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; color: var(--accent); font-weight: 600; margin: 0 0 0.75rem; }
+    .takeaways ul { margin: 0; }
+    .table-wrap { overflow-x: auto; margin: 0 0 1.1rem; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+    th { color: var(--muted); font-weight: 600; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+    .cta {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin: 2.5rem 0;
+      text-align: center;
+    }
+    .cta a {
+      display: inline-block;
+      margin-top: 0.75rem;
+      background: var(--fg);
+      color: #000;
+      font-weight: 600;
+      padding: 0.55rem 1.25rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem; display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 0.75rem;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    footer a { text-decoration: none; margin-left: 1rem; }
+    footer a:hover { color: var(--fg); }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">
+      <img src="/opencontext-logo.png" alt="open-context" />
+      <span>open-context</span>
+    </a>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/blog/" class="active">Blog</a>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <article>
+      <div class="meta">August 17, 2026 · 6 min read</div>
+      <h1>Running an MCP Server in Docker: A Practical Guide</h1>
+
+      <p class="lead">
+        You can run open-context's MCP server in Docker with one command:
+        <code>docker run -i --rm -v opencontext-data:/root/.opencontext adityakarnam/open-context:latest node dist/mcp/index.js</code>.
+        That single image also serves the web UI and REST API — the difference is just which command you pass at
+        the end, and a named volume that keeps your saved context across restarts and upgrades.
+      </p>
+
+      <div class="takeaways">
+        <p class="label">Key takeaways</p>
+        <ul>
+          <li>open-context ships one Docker image (built on <code>node:25-slim</code>) that bundles the React UI, REST API, and MCP server together.</li>
+          <li>The default <code>CMD</code> starts the HTTP server on port 3000; override it with <code>node dist/mcp/index.js</code> to run the same image in MCP stdio mode instead.</li>
+          <li>Mount a named volume at <code>/root/.opencontext</code> — that's where <code>contexts.json</code>, preferences, and generated memory docs live, so they survive image upgrades.</li>
+          <li>On Linux, <code>host.docker.internal</code> isn't resolved automatically — add <code>--add-host=host.docker.internal:host-gateway</code> if the container needs to reach a host-side Ollama instance.</li>
+          <li>Connecting Claude Desktop or Claude Code just means pointing their <code>mcpServers</code> config at a <code>docker run</code> command — no local Node.js install required.</li>
+        </ul>
+      </div>
+
+      <h2>Why run an MCP server in a container at all</h2>
+      <p>
+        <a class="inline-link" href="https://modelcontextprotocol.io/" target="_blank" rel="noopener noreferrer">MCP</a>
+        servers are just local processes that speak a specific protocol over stdio or HTTP, so nothing forces you
+        to containerize one. But Docker has been standardizing around MCP distribution — Docker's own
+        <a class="inline-link" href="https://docs.docker.com/ai/mcp-catalog-and-toolkit/" target="_blank" rel="noopener noreferrer">MCP Catalog and Toolkit</a>
+        now ships a registry of MCP servers as container images under the <code>mcp/</code> namespace on Docker
+        Hub specifically so they can be pulled and run without a local language runtime. The same logic applies to
+        <a class="inline-link" href="/">open-context</a>'s MCP server: a container gives you a pinned Node.js
+        version, no global <code>npm install</code>, and a clean way to isolate the process's filesystem access to
+        one mounted volume.
+      </p>
+
+      <h2>How open-context packages its MCP server</h2>
+      <p>
+        The <a class="inline-link" href="https://hub.docker.com/r/adityakarnam/opencontext" target="_blank" rel="noopener noreferrer">official image</a>
+        (<code>adityakarnam/open-context:latest</code>) is built in three stages: the React UI is compiled first,
+        the TypeScript CLI/server/MCP code is compiled second, and both outputs are copied into a slim production
+        stage with only production dependencies installed. The result is one image that can run three different
+        ways depending on the command you pass it:
+      </p>
+      <ul>
+        <li><code>node dist/server.js</code> (the default) — starts the Express HTTP server: web UI + REST API on port 3000.</li>
+        <li><code>node dist/mcp/index.js</code> — starts the MCP server over stdio, for Claude Desktop or Claude Code to launch directly.</li>
+      </ul>
+      <p>
+        Both modes read and write the same <code>/root/.opencontext/</code> directory, which is why mounting a
+        persistent volume matters even if you only ever use MCP stdio mode.
+      </p>
+
+      <h2>Step-by-step: run the MCP server in Docker</h2>
+
+      <h3>1. Pull the image</h3>
+      <p>No clone or build required — the image is published to Docker Hub:</p>
+      <pre><code>docker pull adityakarnam/open-context:latest</code></pre>
+
+      <h3>2. Run it in MCP stdio mode</h3>
+      <p>
+        Override the default command and add <code>-i</code> so Docker keeps stdin open for the stdio transport:
+      </p>
+      <pre><code>docker run -i --rm \
+  -v opencontext-data:/root/.opencontext \
+  adityakarnam/open-context:latest \
+  node dist/mcp/index.js</code></pre>
+      <p>
+        <code>--rm</code> is safe here because nothing important lives in the container itself — all state is in
+        the <code>opencontext-data</code> volume, which Docker keeps around after the container exits.
+      </p>
+
+      <h3>3. Confirm what's in the volume</h3>
+      <p>The mounted volume is the only place open-context writes to:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>File in <code>/root/.opencontext/</code></th><th>Contents</th></tr></thead>
+          <tbody>
+            <tr><td><code>contexts.json</code></td><td>MCP context entries Claude has saved via <code>save_context</code></td></tr>
+            <tr><td><code>preferences.json</code></td><td>Structured preferences from the web UI form</td></tr>
+            <tr><td><code>preferences.md</code></td><td>Generated Claude preferences doc</td></tr>
+            <tr><td><code>memory.md</code></td><td>Generated Claude memory doc</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Connect Claude Desktop or Claude Code</h2>
+      <p>
+        Both clients read an <code>mcpServers</code> block from a config file and launch the command you give
+        them — pointing that command at <code>docker run</code> means Claude starts and stops the container for
+        you on each session. Add this to <code>~/.claude/settings.json</code> (Claude Code) or
+        <code>claude_desktop_config.json</code> (Claude Desktop, under <code>~/Library/Application Support/Claude/</code>
+        on macOS):
+      </p>
+      <pre><code>{
+  "mcpServers": {
+    "open-context": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "-v", "opencontext-data:/root/.opencontext",
+               "adityakarnam/open-context:latest", "node", "dist/mcp/index.js"]
+    }
+  }
+}</code></pre>
+      <p>
+        Restart the client after saving. Claude now has <code>save_context</code>, <code>recall_context</code>,
+        <code>list_contexts</code>, <code>search_contexts</code>, <code>update_context</code>, and
+        <code>delete_context</code> tools backed by the same volume every time it starts the container — see
+        <a class="inline-link" href="/blog/mcp-persistent-memory/">how MCP persistent memory works</a> for what
+        each tool does in practice.
+      </p>
+
+      <h2>Environment variables worth setting</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Variable</th><th>Default</th><th>When to change it</th></tr></thead>
+          <tbody>
+            <tr><td><code>OPENCONTEXT_STORE_PATH</code></td><td><code>/root/.opencontext/contexts.json</code></td><td>Rarely — only if you're mounting the volume somewhere other than the default path</td></tr>
+            <tr><td><code>OLLAMA_HOST</code></td><td><code>http://host.docker.internal:11434</code></td><td>If Ollama runs on a different machine, e.g. a GPU box on your LAN</td></tr>
+            <tr><td><code>PORT</code></td><td><code>3000</code></td><td>Only relevant in HTTP server mode, not MCP stdio mode</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2>Common Docker + MCP problems</h2>
+      <p>
+        <strong>Container can't reach Ollama on the host.</strong> <code>host.docker.internal</code> resolves
+        automatically on Docker Desktop for Mac and Windows, but not on Linux. Add
+        <code>--add-host=host.docker.internal:host-gateway</code> to your <code>docker run</code> command, or set
+        <code>OLLAMA_HOST</code> directly to your host's LAN IP.
+      </p>
+      <p>
+        <strong>Container exits immediately with <code>ERR_MODULE_NOT_FOUND</code>.</strong> This was caused by
+        missing <code>.js</code> extensions in older ESM builds. Pull the latest tag and it's resolved:
+        <code>docker pull adityakarnam/open-context:latest</code>.
+      </p>
+      <p>
+        <strong>Claude doesn't see the MCP tools after editing the config.</strong> Both Claude Desktop and Claude
+        Code only read <code>mcpServers</code> config on startup — fully quit and reopen the client rather than
+        just closing the window.
+      </p>
+
+      <div class="cta">
+        <p style="margin:0; color: var(--muted);">Give Claude persistent memory with one Docker command.</p>
+        <a href="/">Get started with open-context →</a>
+      </div>
+
+      <h2>FAQ</h2>
+
+      <h3>Do I need to build the Docker image myself?</h3>
+      <p>No. <code>adityakarnam/open-context:latest</code> is published on Docker Hub, so <code>docker pull adityakarnam/open-context:latest</code> gets you a working image without cloning the repo or running a build.</p>
+
+      <h3>How do I switch the same image between the web UI and MCP stdio mode?</h3>
+      <p>The image's default command runs the HTTP server (<code>node dist/server.js</code>) on port 3000. Override the command with <code>node dist/mcp/index.js</code> and pass <code>-i</code> to <code>docker run</code> to get MCP stdio mode instead — no separate image is needed.</p>
+
+      <h3>Why can't my containerized MCP server reach Ollama on the host?</h3>
+      <p>On Docker Desktop (Mac/Windows), <code>host.docker.internal</code> resolves automatically. On Linux it doesn't by default — add <code>--add-host=host.docker.internal:host-gateway</code> to your <code>docker run</code> command, or set <code>OLLAMA_HOST</code> to your host machine's LAN IP.</p>
+
+      <h3>Will I lose my saved contexts if I update the image?</h3>
+      <p>No, as long as you mount a named volume at <code>/root/.opencontext</code>. The <code>contexts.json</code> file, preferences, and generated memory docs live in that volume, not in the container's writable layer, so pulling a new image tag and restarting the container preserves them.</p>
+
+      <h3>Does the MCP server need internet access to run in Docker?</h3>
+      <p>No. The MCP server itself only reads and writes its local JSON store. The container makes no outbound calls unless you separately enable Ollama-based preference analysis, which is optional and stays on your own network.</p>
+    </article>
+  </main>
+
+  <footer>
+    <span>open-context.dev — open source, self-hosted</span>
+    <div>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://hub.docker.com/r/adityakarnam/opencontext" target="_blank" rel="noopener noreferrer">Docker Hub</a>
+    </div>
+  </footer>
+</body>
+</html>
