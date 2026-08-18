@@ -1,7 +1,10 @@
 # BYODB — Bring Your Own Database
 
 **Date:** 2026-08-17
-**Status:** Approved for implementation
+**Status:** Implemented
+**Revised:** 2026-08-17 — scope widened from 5 backends to 15 during implementation
+(Azure SQL, Cloud SQL, DynamoDB, MySQL, MongoDB, Redis, Firestore, D1, memory added
+at the user's request).
 **Branch:** `feat/byodb`
 
 ## Problem
@@ -42,16 +45,25 @@ driver is asynchronous, so the store interface must become async. Both consumers
 (`src/server.ts` Express handlers and `src/mcp/server.ts` tool handlers) already
 execute inside async contexts, so this ripple is mechanical: add `async`/`await`.
 
-### Approach: SQL-generic core plus dialect bindings
+### Approach: shared cores plus thin per-engine bindings
 
-SQLite, Postgres, and DuckDB are all SQL databases. Rather than write the same
-CRUD five times, the CRUD is written **once** against a small `SqlDriver`
-interface, and each engine supplies a `Dialect` carrying its parameter-placeholder
-style and its DDL. JSON and SurrealDB get bespoke adapters because neither is SQL.
+The backends fall into families, and CRUD is written **once per family**:
 
-This is roughly 40% of the code of five independent adapters, and — more
-importantly — search and ordering semantics cannot drift between SQL backends
-because there is only one implementation of them.
+| Family | Shared implementation | Per-engine work | Backends |
+|---|---|---|---|
+| File | `adapters/json.ts` | — | json |
+| SQL | `adapters/sql.ts` + `Dialect` | placeholder style, DDL, concat, ~50-line driver | sqlite, libsql, d1, duckdb, postgres, cloudsql, mysql, mssql |
+| Document / KV | `adapters/document.ts` + `DocumentDriver` | six methods (get/put/remove/list/ping/connect) | memory, mongodb, redis, firestore, dynamodb |
+| Multi-model | `adapters/surreal.ts` | bespoke | surrealdb |
+
+This is a small fraction of the code of fifteen independent adapters, and — more
+importantly — search and ordering semantics cannot drift between backends in a
+family, because there is only one implementation of them.
+
+The `Dialect` carries everything that genuinely differs between SQL engines:
+placeholder style (`?` / `$1` / `@p1`), DDL (SQL Server has no
+`CREATE TABLE IF NOT EXISTS`; MySQL cannot index an unbounded `TEXT` key), and
+string concatenation (`||` versus `+` versus `CONCAT()`).
 
 ### Layout
 
@@ -257,14 +269,17 @@ The core testing move is a **shared conformance suite** at
 covers every case in today's `tests/mcp/store.test.ts` plus bubble unassign-vs-cascade
 delete, tag filtering, multi-term search, and the ordering contract.
 
-It runs unconditionally against:
+It runs unconditionally against one backend from each family, so all three shared
+implementations are covered with no external dependency:
 
-- **JSON** — no external dependency
-- **SQLite** — `node:sqlite` is built into Node 25, so still no external dependency
+- **JSON** — the file adapter
+- **SQLite** — the shared SQL core, via Node's built-in `node:sqlite`
+- **memory** — the shared document core
 
-and against Postgres, DuckDB, and SurrealDB only when their connection
-environment variables are set, so CI stays green without containers and a
-developer with a local Postgres gets real coverage for free.
+Every other backend runs when its connection string is in the environment.
+`docker-compose.test.yml` brings up Postgres, MySQL, SQL Server, MongoDB, Redis,
+SurrealDB and DynamoDB Local on non-default ports so they cannot collide with
+anything already running.
 
 Additional tests:
 

@@ -33,9 +33,19 @@ FROM node:25-slim
 
 WORKDIR /app
 
-# Install production dependencies only
+# Database drivers to bake in (BYODB). Empty by default, which keeps the image
+# small — opencontext runs on the built-in JSON, memory, SQLite and Cloudflare D1
+# backends with no driver at all.
+#
+#   docker build --build-arg DB_DRIVERS="pg" -t opencontext .
+#   docker build --build-arg DB_DRIVERS="mongodb redis" -t opencontext .
+ARG DB_DRIVERS=""
+
+# Install production dependencies only. Optional peer dependencies are not
+# auto-installed by npm, so only the drivers named above are added.
 COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev \
+ && if [ -n "$DB_DRIVERS" ]; then npm install --no-save $DB_DRIVERS; fi
 
 # Copy compiled server + MCP + CLI
 COPY --from=server-builder /app/dist ./dist

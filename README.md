@@ -90,11 +90,112 @@ Switching AI assistants means losing all prior context — your communication st
 - Persistent context across Claude chats
 - Save, recall, search, and tag memories
 - Works with Claude Code & Claude Desktop
-- Local JSON store at `~/.opencontext/`
+- Store it in **any database you like** (BYODB)
 
 </td>
 </tr>
 </table>
+
+
+---
+
+## 🗄️ Bring Your Own Database (BYODB)
+
+By default opencontext keeps everything in a JSON file at `~/.opencontext/contexts.json` — zero
+configuration, nothing to install. When you outgrow that, point it at any of **15 backends**
+without changing how the CLI, the web UI, or the MCP tools behave.
+
+```bash
+# See what is available and what is installed
+opencontext db adapters
+
+# Try a connection without committing to it
+opencontext db test "postgres://user:pass@localhost:5432/opencontext"
+
+# Switch to it, and bring your existing history along
+opencontext db use "postgres://user:pass@localhost:5432/opencontext"
+opencontext db migrate --to "postgres://user:pass@localhost:5432/opencontext"
+```
+
+Or use the **Database** page in the web UI: pick a backend, test the connection, save it, and
+copy your data across — no terminal required.
+
+### Supported backends
+
+| Backend | Connection string | Install |
+|---|---|---|
+| **JSON file** *(default)* | `json:///path/to/contexts.json` | — built in |
+| **In-memory** | `memory://` | — built in |
+| **SQLite** | `sqlite:///path/to/opencontext.db` | — built in (`node:sqlite`) |
+| **Cloudflare D1** | `d1://ACCOUNT_ID/DATABASE_ID?apiToken=TOKEN` | — built in (HTTP) |
+| **DuckDB** | `duckdb:///path/to/opencontext.duckdb` | `npm i @duckdb/node-api` |
+| **libSQL / Turso** | `libsql://DB.turso.io?authToken=TOKEN` | `npm i @libsql/client` |
+| **PostgreSQL** | `postgres://user:pass@host:5432/db` | `npm i pg` |
+| **Google Cloud SQL** | `cloudsql://user:pass@PROJECT:REGION:INSTANCE/db` | `npm i @google-cloud/cloud-sql-connector pg` |
+| **MySQL / MariaDB** | `mysql://user:pass@host:3306/db` | `npm i mysql2` |
+| **SQL Server / Azure SQL** | `mssql://user:pass@host:1433/db` | `npm i mssql` |
+| **MongoDB** | `mongodb://user:pass@host:27017/db` | `npm i mongodb` |
+| **Redis / Valkey** | `redis://host:6379` | `npm i redis` |
+| **Google Firestore** | `firestore://PROJECT_ID` | `npm i @google-cloud/firestore` |
+| **Amazon DynamoDB** | `dynamodb://REGION/TABLE` | `npm i @aws-sdk/client-dynamodb @aws-sdk/lib-dynamodb` |
+| **SurrealDB** | `surrealdb://user:pass@host:8000/ns/db` | `npm i surrealdb` |
+
+Drivers are **optional peer dependencies** — nothing is installed until you ask for a backend
+that needs it, so the default install and the Docker image stay small. Pick a backend whose
+driver is missing and opencontext tells you exactly what to run.
+
+### Managed services
+
+Most managed databases speak a protocol already listed above, so they need no special support:
+
+| Service | Use |
+|---|---|
+| Neon, Supabase, Amazon RDS/Aurora, Azure Database for PostgreSQL, CockroachDB, Timescale | `postgres://…` (add `?sslmode=require`) |
+| PlanetScale, Azure Database for MySQL, Cloud SQL for MySQL, Aurora MySQL | `mysql://…?ssl=true` |
+| Azure Cosmos DB (MongoDB API), MongoDB Atlas | `mongodb://…` / `mongodb+srv://…` |
+| Upstash, ElastiCache, Valkey | `redis://…` or `rediss://…` for TLS |
+| Turso | `libsql://…` |
+
+### Configuration
+
+The store is resolved in this order — the first one that is set wins:
+
+1. `OPENCONTEXT_DB_URL` environment variable
+2. `database.url` in `~/.opencontext/config.json` (what the UI and `db use` write)
+3. `OPENCONTEXT_STORE_PATH` — the legacy setting, still honoured
+4. Default: `~/.opencontext/contexts.json`
+
+Because the environment wins, a container can pin the database regardless of what is saved
+locally. **Existing installs need to do nothing** — with no configuration at all, opencontext
+reads the same JSON file it always has.
+
+```bash
+# Docker with Postgres
+docker run -p 3000:3000 \
+  -e OPENCONTEXT_DB_URL="postgres://user:pass@db.internal:5432/opencontext" \
+  adityakarnam/opencontext:latest
+```
+
+### Choosing a backend
+
+- **Staying on one machine?** The default JSON file is fine. Move to **SQLite** when you have
+  thousands of contexts or run the HTTP and MCP servers at once — it needs no install and
+  writes only what changed instead of rewriting the whole store.
+- **Sharing context across machines?** Any of the remote backends. **PostgreSQL** is the
+  best-supported, and every predicate runs in the database.
+- **Already run a database?** Use it. That is the point.
+
+A note on how search behaves: the SQL backends push filtering down into the database. The
+document and key-value backends (MongoDB, Redis, Firestore, DynamoDB) have no portable
+case-insensitive substring predicate, so opencontext reads the context collection and filters
+in memory. Results are identical — every backend passes the same conformance suite — but on a
+very large store a SQL backend will be faster.
+
+### Security
+
+Connection strings carry passwords, so `~/.opencontext/config.json` is written with owner-only
+(`0600`) permissions and credentials are redacted from every API response, log line, and UI
+field. Nothing is sent anywhere: your process connects directly to your database.
 
 ---
 

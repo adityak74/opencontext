@@ -9,6 +9,10 @@ import request from 'supertest';
 // ---------------------------------------------------------------------------
 
 const mockStore = vi.hoisted(() => ({
+  info: { scheme: 'json', label: 'JSON file', target: '/tmp/test/contexts.json', remote: false },
+  connect: vi.fn(async () => {}),
+  close: vi.fn(async () => {}),
+  ping: vi.fn(async () => {}),
   listContexts: vi.fn(),
   saveContext: vi.fn(),
   searchContexts: vi.fn(),
@@ -23,8 +27,22 @@ const mockStore = vi.hoisted(() => ({
   deleteBubble: vi.fn(),
 }));
 
-vi.mock('../src/mcp/store.js', () => ({
-  createStore: vi.fn(function () { return mockStore; }),
+// The store is now an async, pluggable adapter reached through a manager, so the
+// mock resolves a promise and stands in for whichever backend is configured.
+vi.mock('../src/store/manager.js', () => ({
+  createStoreManager: vi.fn(function () {
+    return {
+      get: vi.fn(async () => mockStore),
+      resolution: vi.fn(() => ({
+        url: 'json:///tmp/test/contexts.json',
+        redacted: 'json:///tmp/test/contexts.json',
+        source: 'default',
+        locked: false,
+      })),
+      reconnect: vi.fn(async () => mockStore.info),
+      close: vi.fn(async () => {}),
+    };
+  }),
 }));
 
 const mockOllamaInstance = vi.hoisted(() => ({ list: vi.fn() }));

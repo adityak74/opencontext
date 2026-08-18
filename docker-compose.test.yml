@@ -1,0 +1,75 @@
+# Databases for BYODB conformance testing.
+#
+#   docker compose -f docker-compose.test.yml up -d
+#   npm run test:backends
+#   docker compose -f docker-compose.test.yml down -v
+#
+# Every service binds a non-default host port so it cannot collide with a real
+# database already running on the machine.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: opencontext
+      POSTGRES_PASSWORD: opencontext
+      POSTGRES_DB: opencontext
+    ports:
+      - '55432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U opencontext']
+      interval: 3s
+      retries: 20
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: opencontext
+      MYSQL_DATABASE: opencontext
+      MYSQL_USER: opencontext
+      MYSQL_PASSWORD: opencontext
+    ports:
+      - '53306:3306'
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-popencontext']
+      interval: 5s
+      retries: 30
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: 'Y'
+      MSSQL_SA_PASSWORD: 'OpenContext!2026'
+      MSSQL_PID: Developer
+    ports:
+      - '51433:1433'
+
+  mongodb:
+    image: mongo:8
+    ports:
+      - '57017:27017'
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.runCommand({ping:1})']
+      interval: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '56379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 3s
+      retries: 20
+
+  surrealdb:
+    image: surrealdb/surrealdb:latest
+    command: start --user root --pass root --bind 0.0.0.0:8000 memory
+    ports:
+      - '58000:8000'
+
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    command: -jar DynamoDBLocal.jar -inMemory -sharedDb
+    ports:
+      - '58001:8000'

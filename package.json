@@ -16,7 +16,9 @@
     "server:prod": "node dist/server.js",
     "mcp:server": "tsx src/mcp/index.ts",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:backends": "vitest run tests/store/backends.test.ts",
+    "db": "tsx src/index.ts db"
   },
   "keywords": [
     "chatgpt",
@@ -26,7 +28,13 @@
     "converter",
     "ai",
     "mcp",
-    "model-context-protocol"
+    "model-context-protocol",
+    "database",
+    "byodb",
+    "postgres",
+    "sqlite",
+    "mongodb",
+    "duckdb"
   ],
   "author": "",
   "license": "MIT",
@@ -54,5 +62,57 @@
     "tsx": "^4.23.12",
     "typescript": "^5.9.3",
     "vitest": "^4.1.8"
+  },
+  "peerDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.0.0",
+    "@aws-sdk/lib-dynamodb": "^3.0.0",
+    "@duckdb/node-api": "^1.0.0",
+    "@google-cloud/cloud-sql-connector": "^1.0.0",
+    "@google-cloud/firestore": "^7.0.0",
+    "@libsql/client": "^0.15.0",
+    "mongodb": "^6.0.0",
+    "mssql": "^11.0.0",
+    "mysql2": "^3.0.0",
+    "pg": "^8.0.0",
+    "redis": "^5.0.0",
+    "surrealdb": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@aws-sdk/client-dynamodb": {
+      "optional": true
+    },
+    "@aws-sdk/lib-dynamodb": {
+      "optional": true
+    },
+    "@duckdb/node-api": {
+      "optional": true
+    },
+    "@google-cloud/cloud-sql-connector": {
+      "optional": true
+    },
+    "@google-cloud/firestore": {
+      "optional": true
+    },
+    "@libsql/client": {
+      "optional": true
+    },
+    "mongodb": {
+      "optional": true
+    },
+    "mssql": {
+      "optional": true
+    },
+    "mysql2": {
+      "optional": true
+    },
+    "pg": {
+      "optional": true
+    },
+    "redis": {
+      "optional": true
+    },
+    "surrealdb": {
+      "optional": true
+    }
   }
 }

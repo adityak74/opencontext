@@ -9,7 +9,12 @@ import { ZipExtractor } from './extractor.js';
 import { ChatGPTParser } from './parsers/chatgpt.js';
 import { ConversationNormalizer } from './parsers/normalizer.js';
 import { OllamaPreferenceAnalyzer } from './analyzers/ollama-preferences.js';
-import { createStore } from './mcp/store.js';
+import { createStoreManager } from './store/manager.js';
+import { migrateStore } from './store/migrate.js';
+import { createStore, ADAPTERS, isDriverInstalled } from './store/index.js';
+import { parseDsn, redactDsn } from './store/dsn.js';
+import { resolveDatabase, clearDatabaseUrl, getDefaultJsonPath } from './store/config.js';
+import { InvalidDsnError, DriverNotInstalledError } from './store/types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,14 +30,16 @@ const upload = multer({ dest: uploadDir });
 // Ollama host — defaults to host.docker.internal so containers reach the host machine
 const OLLAMA_HOST = process.env.OLLAMA_HOST ?? 'http://host.docker.internal:11434';
 
-// Context store
-const storePath =
-  process.env.OPENCONTEXT_STORE_PATH ??
-  path.join(os.homedir(), '.opencontext', 'contexts.json');
-const store = createStore(storePath);
+// Context store — a pluggable backend resolved from env, saved config, or the
+// legacy store path. Connects lazily so importing this module stays synchronous.
+const storeManager = createStoreManager();
+const store = () => storeManager.get();
 
-// Preferences files live alongside the context store
-const prefsDir = path.dirname(storePath);
+// Preferences remain files on disk regardless of which database backs the
+// contexts, because Claude reads them straight from the filesystem.
+const prefsDir = path.dirname(
+  process.env.OPENCONTEXT_STORE_PATH ?? getDefaultJsonPath(),
+);
 const prefsJsonPath = path.join(prefsDir, 'preferences.json');
 const prefsMdPath = path.join(prefsDir, 'preferences.md');
 const memoryMdPath = path.join(prefsDir, 'memory.md');
@@ -120,7 +127,7 @@ if (fs.existsSync(publicDir)) {
 // ---------------------------------------------------------------------------
 
 app.get('/api/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', ollamaHost: OLLAMA_HOST, store: storePath });
+  res.json({ status: 'ok', ollamaHost: OLLAMA_HOST, store: resolveDatabase().redacted });
 });
 
 // ---------------------------------------------------------------------------
@@ -245,12 +252,12 @@ app.put('/api/preferences', (req: Request, res: Response) => {
 // Contexts — CRUD for the MCP context store
 // ---------------------------------------------------------------------------
 
-app.get('/api/contexts', (req: Request, res: Response) => {
+app.get('/api/contexts', async (req: Request, res: Response) => {
   const tag = req.query.tag as string | undefined;
-  res.json(store.listContexts(tag));
+  res.json(await (await store()).listContexts(tag));
 });
 
-app.post('/api/contexts', (req: Request, res: Response) => {
+app.post('/api/contexts', async (req: Request, res: Response) => {
   const { content, tags, source, bubbleId } = req.body as {
     content: string;
     tags?: string[];
@@ -261,20 +268,20 @@ app.post('/api/contexts', (req: Request, res: Response) => {
     res.status(400).json({ error: 'content is required' });
     return;
   }
-  res.status(201).json(store.saveContext(content, tags, source, bubbleId));
+  res.status(201).json(await (await store()).saveContext(content, tags, source, bubbleId));
 });
 
-app.get('/api/contexts/search', (req: Request, res: Response) => {
+app.get('/api/contexts/search', async (req: Request, res: Response) => {
   const q = req.query.q as string;
   if (!q) {
     res.status(400).json({ error: 'q query param required' });
     return;
   }
-  res.json(store.searchContexts(q));
+  res.json(await (await store()).searchContexts(q));
 });
 
-app.get('/api/contexts/:id', (req: Request, res: Response) => {
-  const entry = store.getContext(req.params['id'] as string);
+app.get('/api/contexts/:id', async (req: Request, res: Response) => {
+  const entry = await (await store()).getContext(req.params['id'] as string);
   if (!entry) {
     res.status(404).json({ error: 'Not found' });
     return;
@@ -282,7 +289,7 @@ app.get('/api/contexts/:id', (req: Request, res: Response) => {
   res.json(entry);
 });
 
-app.put('/api/contexts/:id', (req: Request, res: Response) => {
+app.put('/api/contexts/:id', async (req: Request, res: Response) => {
   const { content, tags, bubbleId } = req.body as {
     content: string;
     tags?: string[];
@@ -292,7 +299,7 @@ app.put('/api/contexts/:id', (req: Request, res: Response) => {
     res.status(400).json({ error: 'content is required' });
     return;
   }
-  const updated = store.updateContext(req.params['id'] as string, content, tags, bubbleId);
+  const updated = await (await store()).updateContext(req.params['id'] as string, content, tags, bubbleId);
   if (!updated) {
     res.status(404).json({ error: 'Not found' });
     return;
@@ -300,8 +307,8 @@ app.put('/api/contexts/:id', (req: Request, res: Response) => {
   res.json(updated);
 });
 
-app.delete('/api/contexts/:id', (req: Request, res: Response) => {
-  const deleted = store.deleteContext(req.params['id'] as string);
+app.delete('/api/contexts/:id', async (req: Request, res: Response) => {
+  const deleted = await (await store()).deleteContext(req.params['id'] as string);
   if (!deleted) {
     res.status(404).json({ error: 'Not found' });
     return;
@@ -313,52 +320,55 @@ app.delete('/api/contexts/:id', (req: Request, res: Response) => {
 // Bubbles — CRUD for project workspaces
 // ---------------------------------------------------------------------------
 
-app.get('/api/bubbles', (_req: Request, res: Response) => {
-  const bubbles = store.listBubbles();
-  const withCounts = bubbles.map((b) => ({
-    ...b,
-    contextCount: store.listContextsByBubble(b.id).length,
-  }));
+app.get('/api/bubbles', async (_req: Request, res: Response) => {
+  const db = await store();
+  const bubbles = await db.listBubbles();
+  const withCounts = await Promise.all(
+    bubbles.map(async (b) => ({
+      ...b,
+      contextCount: (await db.listContextsByBubble(b.id)).length,
+    })),
+  );
   res.json(withCounts);
 });
 
-app.post('/api/bubbles', (req: Request, res: Response) => {
+app.post('/api/bubbles', async (req: Request, res: Response) => {
   const { name, description } = req.body as { name: string; description?: string };
   if (!name) {
     res.status(400).json({ error: 'name is required' });
     return;
   }
-  res.status(201).json(store.createBubble(name, description));
+  res.status(201).json(await (await store()).createBubble(name, description));
 });
 
-app.get('/api/bubbles/:id', (req: Request, res: Response) => {
-  const bubble = store.getBubble(req.params['id'] as string);
+app.get('/api/bubbles/:id', async (req: Request, res: Response) => {
+  const bubble = await (await store()).getBubble(req.params['id'] as string);
   if (!bubble) {
     res.status(404).json({ error: 'Not found' });
     return;
   }
   res.json({
     ...bubble,
-    contextCount: store.listContextsByBubble(bubble.id).length,
+    contextCount: (await (await store()).listContextsByBubble(bubble.id)).length,
   });
 });
 
-app.get('/api/bubbles/:id/contexts', (req: Request, res: Response) => {
-  const bubble = store.getBubble(req.params['id'] as string);
+app.get('/api/bubbles/:id/contexts', async (req: Request, res: Response) => {
+  const bubble = await (await store()).getBubble(req.params['id'] as string);
   if (!bubble) {
     res.status(404).json({ error: 'Not found' });
     return;
   }
-  res.json(store.listContextsByBubble(req.params['id'] as string));
+  res.json(await (await store()).listContextsByBubble(req.params['id'] as string));
 });
 
-app.put('/api/bubbles/:id', (req: Request, res: Response) => {
+app.put('/api/bubbles/:id', async (req: Request, res: Response) => {
   const { name, description } = req.body as { name: string; description?: string };
   if (!name) {
     res.status(400).json({ error: 'name is required' });
     return;
   }
-  const updated = store.updateBubble(req.params['id'] as string, name, description);
+  const updated = await (await store()).updateBubble(req.params['id'] as string, name, description);
   if (!updated) {
     res.status(404).json({ error: 'Not found' });
     return;
@@ -366,14 +376,152 @@ app.put('/api/bubbles/:id', (req: Request, res: Response) => {
   res.json(updated);
 });
 
-app.delete('/api/bubbles/:id', (req: Request, res: Response) => {
+app.delete('/api/bubbles/:id', async (req: Request, res: Response) => {
   const deleteContexts = req.query['deleteContexts'] === 'true';
-  const deleted = store.deleteBubble(req.params['id'] as string, deleteContexts);
+  const deleted = await (await store()).deleteBubble(req.params['id'] as string, deleteContexts);
   if (!deleted) {
     res.status(404).json({ error: 'Not found' });
     return;
   }
   res.status(204).send();
+});
+
+
+// ---------------------------------------------------------------------------
+// Database — inspect, test, switch and migrate the backing store (BYODB)
+// ---------------------------------------------------------------------------
+
+/** Turn a store failure into a useful message without leaking credentials. */
+function describeStoreError(error: unknown): { status: number; message: string } {
+  if (error instanceof InvalidDsnError) {
+    return { status: 400, message: error.message };
+  }
+  if (error instanceof DriverNotInstalledError) {
+    return { status: 400, message: error.message };
+  }
+  const raw = error instanceof Error ? error.message : String(error);
+  // The driver's own message is the only useful diagnostic for a refused
+  // connection, but it can echo the connection string back — so redact it.
+  return { status: 502, message: redactDsn(raw) };
+}
+
+app.get('/api/db/status', async (_req: Request, res: Response) => {
+  const resolution = resolveDatabase();
+  try {
+    const db = await store();
+    const [contexts, bubbles] = await Promise.all([db.listContexts(), db.listBubbles()]);
+    res.json({
+      connected: true,
+      adapter: db.info,
+      source: resolution.source,
+      locked: resolution.locked,
+      url: resolution.redacted,
+      counts: { contexts: contexts.length, bubbles: bubbles.length },
+    });
+  } catch (error) {
+    const { message } = describeStoreError(error);
+    res.json({
+      connected: false,
+      adapter: null,
+      source: resolution.source,
+      locked: resolution.locked,
+      url: resolution.redacted,
+      counts: null,
+      error: message,
+    });
+  }
+});
+
+app.get('/api/db/adapters', async (_req: Request, res: Response) => {
+  const adapters = await Promise.all(
+    ADAPTERS.map(async (adapter) => ({
+      ...adapter,
+      installed: await isDriverInstalled(adapter.scheme),
+    })),
+  );
+  res.json(adapters);
+});
+
+app.post('/api/db/test', async (req: Request, res: Response) => {
+  const { url } = req.body as { url?: string };
+  if (!url) {
+    res.status(400).json({ ok: false, error: 'url is required' });
+    return;
+  }
+  let candidate;
+  try {
+    // Open, ping, and close again — a test must never leave a connection behind
+    // or disturb the store currently in use.
+    candidate = await createStore(url);
+    await candidate.ping();
+    res.json({ ok: true, adapter: candidate.info });
+  } catch (error) {
+    const { status, message } = describeStoreError(error);
+    res.status(status).json({ ok: false, error: message });
+  } finally {
+    await candidate?.close().catch(() => undefined);
+  }
+});
+
+app.put('/api/db/config', async (req: Request, res: Response) => {
+  const { url } = req.body as { url?: string };
+  if (!url) {
+    res.status(400).json({ error: 'url is required' });
+    return;
+  }
+  if (resolveDatabase().locked) {
+    res.status(409).json({
+      error:
+        'The database is set by the OPENCONTEXT_DB_URL environment variable, ' +
+        'which takes precedence over saved settings. Unset it to change the store here.',
+    });
+    return;
+  }
+  try {
+    parseDsn(url);
+    // reconnect keeps the previous store if the new one fails to open, so a bad
+    // connection string cannot take the running server down.
+    const info = await storeManager.reconnect(url, { persist: true });
+    res.json({ ok: true, adapter: info });
+  } catch (error) {
+    const { status, message } = describeStoreError(error);
+    res.status(status).json({ ok: false, error: message });
+  }
+});
+
+app.delete('/api/db/config', async (_req: Request, res: Response) => {
+  if (resolveDatabase().locked) {
+    res.status(409).json({ error: 'The database is pinned by an environment variable.' });
+    return;
+  }
+  clearDatabaseUrl();
+  try {
+    const info = await storeManager.reconnect(resolveDatabase().url);
+    res.json({ ok: true, adapter: info });
+  } catch (error) {
+    const { status, message } = describeStoreError(error);
+    res.status(status).json({ ok: false, error: message });
+  }
+});
+
+app.post('/api/db/migrate', async (req: Request, res: Response) => {
+  const { url, mode } = req.body as { url?: string; mode?: 'copy' | 'replace' };
+  if (!url) {
+    res.status(400).json({ error: 'url is required' });
+    return;
+  }
+  let target;
+  try {
+    target = await createStore(url);
+    // The source is only read, so a failure here cannot damage existing data.
+    const result = await migrateStore(await store(), target, { mode: mode ?? 'copy' });
+    res.json({ ok: true, ...result, target: target.info });
+  } catch (error) {
+    const { status, message } = describeStoreError(error);
+    res.status(status).json({ ok: false, error: message });
+  } finally {
+    await target?.close().catch(() => undefined);
+  }
 });
 
 // ---------------------------------------------------------------------------
@@ -401,7 +549,7 @@ if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`opencontext server  →  http://0.0.0.0:${PORT}`);
     console.log(`Ollama host         →  ${OLLAMA_HOST}`);
-    console.log(`Context store       →  ${storePath}`);
+    console.log(`Context store       →  ${resolveDatabase().redacted}`);
     console.log(`UI                  →  ${fs.existsSync(publicDir) ? 'served from /public' : 'not built'}`);
   });
 }

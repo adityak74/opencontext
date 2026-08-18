@@ -20,6 +20,10 @@ services:
       - opencontext-data:/root/.opencontext
     environment:
       - OPENCONTEXT_STORE_PATH=/root/.opencontext/contexts.json
+      # BYODB — point at any supported database instead of the JSON file.
+      # The driver must be baked in at build time:
+      #   docker compose build --build-arg DB_DRIVERS="pg" app
+      # - OPENCONTEXT_DB_URL=postgres://user:pass@db:5432/opencontext
       # Ollama runs on the host — host.docker.internal resolves to the host machine IP
       - OLLAMA_HOST=http://host.docker.internal:11434
       - PORT=3000
@@ -49,6 +53,10 @@ services:
       - opencontext-data:/root/.opencontext
     environment:
       - OPENCONTEXT_STORE_PATH=/root/.opencontext/contexts.json
+      # BYODB — point at any supported database instead of the JSON file.
+      # The driver must be baked in at build time:
+      #   docker compose build --build-arg DB_DRIVERS="pg" app
+      # - OPENCONTEXT_DB_URL=postgres://user:pass@db:5432/opencontext
     command: ["node", "dist/mcp/index.js"]
 
 volumes:

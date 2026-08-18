@@ -139,7 +139,9 @@ The MCP server (`src/mcp/`) provides 6 tools:
 | `update_context` | Update content/tags of an existing context |
 | `delete_context` | Remove a context by ID |
 
-**Storage**: `~/.opencontext/contexts.json` (override with `OPENCONTEXT_STORE_PATH` env var)
+**Storage**: pluggable (BYODB). Defaults to `~/.opencontext/contexts.json`; set
+`OPENCONTEXT_DB_URL` to use any of the 15 supported backends. `OPENCONTEXT_STORE_PATH` still
+works and maps onto the JSON adapter.
 
 **Running**:
 ```bash
@@ -174,6 +176,66 @@ node dist/mcp/index.js
   }
 }
 ```
+
+---
+
+## BYODB — Pluggable Databases
+
+The context store is an **async adapter interface** (`src/store/types.ts`), not a JSON file.
+Fifteen backends implement it. When touching this area, the important things to know:
+
+### Three adapter families
+
+| Family | Shared implementation | Backends |
+|---|---|---|
+| File | `adapters/json.ts` | json |
+| SQL | `adapters/sql.ts` + a `Dialect` per engine | sqlite, libsql, d1, duckdb, postgres, cloudsql, mysql, mssql |
+| Document / KV | `adapters/document.ts` + a `DocumentDriver` per engine | memory, mongodb, redis, firestore, dynamodb |
+| Multi-model | `adapters/surreal.ts` (bespoke) | surrealdb |
+
+**CRUD is written once per family.** Adding a SQL engine means supplying a `Dialect`
+(placeholder style, DDL, concat) and a ~50-line driver. Adding a NoSQL engine means
+implementing six `DocumentDriver` methods. Do not reimplement the storage contract per backend.
+
+### The conformance suite is the contract
+
+`tests/store/conformance.ts` holds ~50 tests that every adapter must pass. It is the only
+definition of correct behaviour, and **it must never be weakened to make a backend pass** —
+if a backend cannot satisfy it, that is a finding to document, not a test to relax.
+
+It runs with no external services against **json**, **sqlite** and **memory** (covering all
+three families), and against the rest when their connection strings are in the environment:
+
+```bash
+docker compose -f docker-compose.test.yml up -d
+OPENCONTEXT_TEST_POSTGRES_URL="postgres://opencontext:opencontext@127.0.0.1:55432/opencontext" \
+  npm run test:backends
+docker compose -f docker-compose.test.yml down -v
+```
+
+### Invariants to preserve
+
+- **Ordering**: every list method returns `createdAt ASC, id ASC`. Identical across backends.
+- **Search semantics**: case-insensitive substring over content/tags/source; `searchContexts`
+  requires all terms.
+- **Absent vs null**: an unset `bubbleId`/`description` must come back `undefined`, never
+  `null`. Several drivers need explicit configuration to honour this.
+- **Read-your-writes**: a write must be visible to the next read. DynamoDB needs
+  `ConsistentRead: true` for this.
+- **Credentials never leak**: everything user-visible goes through `redactDsn()`.
+- **Drivers pass `dsn.canonical`, never `dsn.raw`** — client libraries reject the aliases we
+  advertise, and `rediss://` / `mongodb+srv://` carry meaning that must survive.
+
+### Adding a backend
+
+1. Add the scheme to `DbScheme` (`types.ts`) and `SUPPORTED_SCHEMES` (`dsn.ts`)
+2. Parse any backend-specific fields in `dsn.ts`
+3. Write a driver in `src/store/drivers/` — a `Dialect` + `SqlDriver`, or a `DocumentDriver`
+4. Register it in `ADAPTERS` and the `build()` switch in `src/store/index.ts`
+5. Load it with `importOptional()` so a missing package produces an install instruction
+6. Add it to `peerDependencies` + `peerDependenciesMeta` as optional
+7. Add a service to `docker-compose.test.yml` and a line to `tests/store/backends.test.ts`
+8. Run the conformance suite against it until all tests pass
 
 ---
 
@@ -286,6 +348,9 @@ docker push adityakarnam/opencontext:latest
 | `npm run build` | Compile TypeScript (CLI + server + MCP) |
 | `npm run server` | Run HTTP server in dev mode |
 | `npm run mcp:server` | Run MCP server in dev mode |
+| `npm run test:backends` | Run store conformance against configured databases |
+| `npm run db -- status` | Show the current database backend |
+| `npm run db -- adapters` | List every backend and whether its driver is installed |
 | `cd ui && npm run dev` | Start UI dev server |
 | `cd ui && npm run build` | Build UI |
 
