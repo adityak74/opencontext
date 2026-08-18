@@ -27,6 +27,15 @@ const adapters = [
     installed: true,
   },
   {
+    scheme: 'memory',
+    label: 'In-memory',
+    example: 'memory://',
+    packageName: null,
+    remote: false,
+    family: 'document',
+    installed: true,
+  },
+  {
     scheme: 'firestore',
     label: 'Google Firestore',
     example: 'firestore://PROJECT_ID',
@@ -194,6 +203,25 @@ describe('DatabaseSettings', () => {
 
     fireEvent.click(screen.getByText('PostgreSQL'));
     expect(screen.getByRole('button', { name: /save & switch/i })).toBeDisabled();
+  });
+
+  it('shows the vendor mark for each backend that has one', async () => {
+    global.fetch = mockFetch() as unknown as typeof fetch;
+    const { container } = render(<DatabaseSettings />);
+
+    await screen.findByText('PostgreSQL');
+    expect(container.querySelector('img[src="/db-logos/postgres.svg"]')).toBeInTheDocument();
+    expect(container.querySelector('img[src="/db-logos/firestore.svg"]')).toBeInTheDocument();
+    // The status card names the current backend, so its mark appears there too.
+    expect(container.querySelectorAll('img[src="/db-logos/json.svg"]').length).toBe(2);
+  });
+
+  it('renders no mark for a backend with no vendor behind it', async () => {
+    global.fetch = mockFetch() as unknown as typeof fetch;
+    const { container } = render(<DatabaseSettings />);
+
+    expect(await screen.findByText('In-memory')).toBeInTheDocument();
+    expect(container.querySelector('img[src="/db-logos/memory.svg"]')).toBeNull();
   });
 
   it('keeps the action buttons disabled until a connection string is entered', async () => {

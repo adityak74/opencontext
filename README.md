@@ -19,7 +19,7 @@
 [![Version](https://img.shields.io/badge/version-0.0.1-blue)](https://hub.docker.com/r/adityakarnam/open-context/tags)
 ![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
 
-[Features](#-features) • [Quick Start](#-quick-start) • [Usage](#-usage) • [Documentation](#-documentation) • [Contributing](#-contributing)
+[Features](#-features) • [BYODB](#byodb) • [Quick Start](#-quick-start) • [Usage](#-usage) • [Documentation](#-documentation) • [Contributing](#-contributing)
 
 <br/>
 
@@ -99,11 +99,17 @@ Switching AI assistants means losing all prior context — your communication st
 
 ---
 
+<a id="byodb"></a>
+
 ## 🗄️ Bring Your Own Database (BYODB)
 
 By default opencontext keeps everything in a JSON file at `~/.opencontext/contexts.json` — zero
 configuration, nothing to install. When you outgrow that, point it at any of **15 backends**
 without changing how the CLI, the web UI, or the MCP tools behave.
+
+<p align="center">
+<img src="ui/public/db-logos/json.svg" width="30" height="30" alt=""> <img src="ui/public/db-logos/sqlite.svg" width="30" height="30" alt=""> <img src="ui/public/db-logos/d1.svg" width="30" height="30" alt=""> <img src="ui/public/db-logos/duckdb.svg" width="30" height="30" alt=""> <img src="ui/public/db-logos/libsql.svg" width="30" height="30" alt=""> <img src="ui/public/db-logos/postgres.svg" width="30" height="30" alt=""> <img src="ui/public/db-logos/cloudsql.svg" width="30" height="30" alt=""> <img src="ui/public/db-logos/mysql.svg" width="30" height="30" alt=""> <img src="ui/public/db-logos/mssql.svg" width="30" height="30" alt=""> <img src="ui/public/db-logos/mongodb.svg" width="30" height="30" alt=""> <img src="ui/public/db-logos/redis.svg" width="30" height="30" alt=""> <img src="ui/public/db-logos/firestore.svg" width="30" height="30" alt=""> <img src="ui/public/db-logos/dynamodb.svg" width="30" height="30" alt=""> <img src="ui/public/db-logos/surrealdb.svg" width="30" height="30" alt="">
+</p>
 
 ```bash
 # See what is available and what is installed
@@ -124,21 +130,21 @@ copy your data across — no terminal required.
 
 | Backend | Connection string | Install |
 |---|---|---|
-| **JSON file** *(default)* | `json:///path/to/contexts.json` | — built in |
+| <img src="ui/public/db-logos/json.svg" width="16" height="16" alt=""> **JSON file** *(default)* | `json:///path/to/contexts.json` | — built in |
 | **In-memory** | `memory://` | — built in |
-| **SQLite** | `sqlite:///path/to/opencontext.db` | — built in (`node:sqlite`) |
-| **Cloudflare D1** | `d1://ACCOUNT_ID/DATABASE_ID?apiToken=TOKEN` | — built in (HTTP) |
-| **DuckDB** | `duckdb:///path/to/opencontext.duckdb` | `npm i @duckdb/node-api` |
-| **libSQL / Turso** | `libsql://DB.turso.io?authToken=TOKEN` | `npm i @libsql/client` |
-| **PostgreSQL** | `postgres://user:pass@host:5432/db` | `npm i pg` |
-| **Google Cloud SQL** | `cloudsql://user:pass@PROJECT:REGION:INSTANCE/db` | `npm i @google-cloud/cloud-sql-connector pg` |
-| **MySQL / MariaDB** | `mysql://user:pass@host:3306/db` | `npm i mysql2` |
-| **SQL Server / Azure SQL** | `mssql://user:pass@host:1433/db` | `npm i mssql` |
-| **MongoDB** | `mongodb://user:pass@host:27017/db` | `npm i mongodb` |
-| **Redis / Valkey** | `redis://host:6379` | `npm i redis` |
-| **Google Firestore** | `firestore://PROJECT_ID` | `npm i @google-cloud/firestore` |
-| **Amazon DynamoDB** | `dynamodb://REGION/TABLE` | `npm i @aws-sdk/client-dynamodb @aws-sdk/lib-dynamodb` |
-| **SurrealDB** | `surrealdb://user:pass@host:8000/ns/db` | `npm i surrealdb` |
+| <img src="ui/public/db-logos/sqlite.svg" width="16" height="16" alt=""> **SQLite** | `sqlite:///path/to/opencontext.db` | — built in (`node:sqlite`) |
+| <img src="ui/public/db-logos/d1.svg" width="16" height="16" alt=""> **Cloudflare D1** | `d1://ACCOUNT_ID/DATABASE_ID?apiToken=TOKEN` | — built in (HTTP) |
+| <img src="ui/public/db-logos/duckdb.svg" width="16" height="16" alt=""> **DuckDB** | `duckdb:///path/to/opencontext.duckdb` | `npm i @duckdb/node-api` |
+| <img src="ui/public/db-logos/libsql.svg" width="16" height="16" alt=""> **libSQL / Turso** | `libsql://DB.turso.io?authToken=TOKEN` | `npm i @libsql/client` |
+| <img src="ui/public/db-logos/postgres.svg" width="16" height="16" alt=""> **PostgreSQL** | `postgres://user:pass@host:5432/db` | `npm i pg` |
+| <img src="ui/public/db-logos/cloudsql.svg" width="16" height="16" alt=""> **Google Cloud SQL** | `cloudsql://user:pass@PROJECT:REGION:INSTANCE/db` | `npm i @google-cloud/cloud-sql-connector pg` |
+| <img src="ui/public/db-logos/mysql.svg" width="16" height="16" alt=""> **MySQL / MariaDB** | `mysql://user:pass@host:3306/db` | `npm i mysql2` |
+| <img src="ui/public/db-logos/mssql.svg" width="16" height="16" alt=""> **SQL Server / Azure SQL** | `mssql://user:pass@host:1433/db` | `npm i mssql` |
+| <img src="ui/public/db-logos/mongodb.svg" width="16" height="16" alt=""> **MongoDB** | `mongodb://user:pass@host:27017/db` | `npm i mongodb` |
+| <img src="ui/public/db-logos/redis.svg" width="16" height="16" alt=""> **Redis / Valkey** | `redis://host:6379` | `npm i redis` |
+| <img src="ui/public/db-logos/firestore.svg" width="16" height="16" alt=""> **Google Firestore** | `firestore://PROJECT_ID` | `npm i @google-cloud/firestore` |
+| <img src="ui/public/db-logos/dynamodb.svg" width="16" height="16" alt=""> **Amazon DynamoDB** | `dynamodb://REGION/TABLE` | `npm i @aws-sdk/client-dynamodb @aws-sdk/lib-dynamodb` |
+| <img src="ui/public/db-logos/surrealdb.svg" width="16" height="16" alt=""> **SurrealDB** | `surrealdb://user:pass@host:8000/ns/db` | `npm i surrealdb` |
 
 Drivers are **optional peer dependencies** — nothing is installed until you ask for a backend
 that needs it, so the default install and the Docker image stay small. Pick a backend whose
@@ -352,6 +358,21 @@ deployment strategies...
 npm start -- convert <zip-file> [options]
 ```
 
+### Database commands
+
+```bash
+opencontext db status                # which backend is active, and where that came from
+opencontext db adapters              # every backend, and whether its driver is installed
+opencontext db test "<url>"          # try a connection without saving it
+opencontext db use "<url>"           # switch to it
+opencontext db migrate --to "<url>"  # copy contexts and bubbles across
+opencontext db reset                 # go back to the default JSON file
+```
+
+`db migrate` only ever reads the source, so it cannot damage the store you already have. Add
+`--replace` to empty the target first, or `--from <url>` to copy between two backends without
+switching to either.
+
 ### Options
 
 | Option | Description | Default |
@@ -485,7 +506,16 @@ npm test
 
 # Run tests with coverage
 npm run test:coverage
+
+# Run the store conformance suite against real databases
+docker compose -f docker-compose.test.yml up -d
+npm run test:backends
+docker compose -f docker-compose.test.yml down -v
 ```
+
+Every backend must pass the same conformance suite (`tests/store/conformance.ts`) unmodified —
+it is the only definition of correct storage behaviour. It runs against JSON, SQLite and
+in-memory with no external services, covering all three shared implementations.
 
 ### Running the full stack locally
 
@@ -519,10 +549,23 @@ opencontext/
 │   │   └── ollama-preferences.ts  # AI-powered analysis (Ollama)
 │   ├── utils/
 │   │   └── file.ts             # File I/O utilities
+│   ├── store/                  # BYODB — the pluggable context store
+│   │   ├── index.ts            # Adapter registry + factory
+│   │   ├── types.ts            # ContextStoreAdapter interface
+│   │   ├── dsn.ts              # Connection string parsing + redaction
+│   │   ├── config.ts           # Resolution order and saved settings
+│   │   ├── manager.ts          # Live connection, reconnect, swap
+│   │   ├── migrate.ts          # Copy one store into another
+│   │   ├── adapters/           # One CRUD implementation per family
+│   │   │   ├── json.ts         #   file
+│   │   │   ├── sql.ts          #   all 8 SQL engines, via a Dialect
+│   │   │   ├── document.ts     #   document/KV stores, via a DocumentDriver
+│   │   │   └── surreal.ts      #   SurrealDB (multi-model)
+│   │   └── drivers/            # Per-engine connection code
 │   └── mcp/                    # MCP server
 │       ├── index.ts            # Entry point (stdio transport)
 │       ├── server.ts           # Tool definitions
-│       ├── store.ts            # JSON-based context store
+│       ├── store.ts            # Deprecated re-export of ../store
 │       └── types.ts            # Type definitions
 │
 └── ui/                         # Web dashboard (React + Vite)
@@ -532,7 +575,8 @@ opencontext/
         │   ├── PreferencesEditor.tsx
         │   ├── ContextViewer.tsx
         │   ├── ConversionPipeline.tsx
-        │   └── VendorExport.tsx
+        │   ├── VendorExport.tsx
+        │   └── DatabaseSettings.tsx # Pick, test, and migrate backends
         ├── store/context.tsx       # React Context state
         ├── types/preferences.ts   # Shared types
         └── exporters/             # Claude, ChatGPT, Gemini exporters
@@ -549,6 +593,7 @@ opencontext/
 - **Ollama** - Local LLM inference (optional)
 - **adm-zip** - ZIP file handling
 - **chalk** - Terminal colors
+- **Database drivers** - optional peer dependencies (`pg`, `mysql2`, `mssql`, `mongodb`, `redis`, `surrealdb`, …); SQLite uses the built-in `node:sqlite`
 
 **Web UI**
 - **React 19 + Vite 7** - UI framework and build tool
@@ -574,7 +619,7 @@ The **open-context MCP server** lets Claude remember things across conversations
 | `update_context` | Update a context by ID |
 | `delete_context` | Delete a context by ID |
 
-Context is stored at `~/.opencontext/contexts.json`. Set `OPENCONTEXT_STORE_PATH` to use a custom location.
+Context is stored at `~/.opencontext/contexts.json` by default. Set `OPENCONTEXT_DB_URL` to keep it in [any of the 15 supported databases](#byodb) instead — the tools behave identically either way. `OPENCONTEXT_STORE_PATH` still works and simply points the JSON store somewhere else.
 
 ### Connect to Claude Code
 
@@ -646,7 +691,8 @@ All data is stored in the mounted volume — no browser localStorage is used. Th
 | `preferences.json` | Your structured preferences (used by the UI form) |
 | `preferences.md` | Claude preferences doc — paste into Claude Settings → Preferences |
 | `memory.md` | Claude memory doc — paste into Claude → Manage Memory |
-| `contexts.json` | MCP context entries saved by Claude |
+| `contexts.json` | MCP context entries saved by Claude — the default store, unused once you configure another database |
+| `config.json` | Saved database connection string, written with owner-only (`0600`) permissions |
 
 ### Environment variables
 
@@ -655,7 +701,8 @@ All data is stored in the mounted volume — no browser localStorage is used. Th
 | `PORT` | `3000` | HTTP server port |
 | `OLLAMA_HOST` | `http://host.docker.internal:11434` | Ollama endpoint — automatically reaches Ollama running on your host machine |
 | `OLLAMA_MODEL` | `gpt-oss:20b` | Default model for preference analysis |
-| `OPENCONTEXT_STORE_PATH` | `/root/.opencontext/contexts.json` | MCP context store path (preferences files live in the same directory) |
+| `OPENCONTEXT_DB_URL` | — | Database for the context store — any [supported backend](#byodb). Takes precedence over anything saved locally |
+| `OPENCONTEXT_STORE_PATH` | `/root/.opencontext/contexts.json` | Legacy JSON store path (preferences files live in the same directory). Ignored when `OPENCONTEXT_DB_URL` is set |
 
 `host.docker.internal` is a special DNS name that resolves to your host machine's IP from inside a Docker container. On Linux you may need `--add-host=host.docker.internal:host-gateway`.
 
@@ -676,6 +723,12 @@ The server exposes a REST API alongside the UI:
 | `GET /api/contexts/:id` | Get a context by ID |
 | `PUT /api/contexts/:id` | Update a context |
 | `DELETE /api/contexts/:id` | Delete a context |
+| `GET /api/db/status` | Active backend, where it was configured, and what it holds |
+| `GET /api/db/adapters` | Every supported backend and whether its driver is installed |
+| `POST /api/db/test` | Test a connection string without saving it |
+| `PUT /api/db/config` | Save a connection string and switch to it |
+| `DELETE /api/db/config` | Clear it and fall back to the default |
+| `POST /api/db/migrate` | Copy contexts and bubbles into another backend |
 
 ### MCP stdio mode
 
@@ -895,6 +948,7 @@ npm start -- convert export.zip --skip-preferences
 - **Manual Claude import** - No direct API (paste manually)
 - **Image references** - Images copied but not embedded
 - **Token limits** - Very large exports may be truncated
+- **Search on document backends** - MongoDB, Redis, Firestore and DynamoDB filter in memory rather than in the database ([details](#byodb))
 
 ---
 
@@ -913,6 +967,7 @@ npm start -- convert export.zip --skip-preferences
 - [x] Export to Claude, ChatGPT, and Gemini formats
 - [x] Automated tests
 - [x] Docker support (Web UI + MCP server)
+- [x] Bring your own database — 15 pluggable backends
 
 ### Future Possibilities
 

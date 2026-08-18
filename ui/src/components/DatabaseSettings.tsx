@@ -60,6 +60,47 @@ const FAMILY_LABELS: Record<AdapterOption['family'], string> = {
   document: 'Document & key-value',
 };
 
+/** Backends we ship a vendor mark for, served from `public/db-logos`. */
+const LOGO_SCHEMES = new Set([
+  'json',
+  'sqlite',
+  'd1',
+  'duckdb',
+  'libsql',
+  'postgres',
+  'cloudsql',
+  'mysql',
+  'mssql',
+  'mongodb',
+  'redis',
+  'firestore',
+  'dynamodb',
+  'surrealdb',
+]);
+
+/**
+ * A backend's vendor mark, on a light chip.
+ *
+ * The marks keep their own brand colours, and several of those — SQLite's navy,
+ * JSON's grey — vanish against this theme's black. Giving every logo the same
+ * light square to sit on keeps them all legible and reads as one set. Backends
+ * with no vendor behind them (in-memory) render nothing.
+ */
+function AdapterLogo({ scheme, size = 18 }: { scheme: string; size?: number }) {
+  if (!LOGO_SCHEMES.has(scheme)) {
+    return null;
+  }
+  const inner = Math.round(size * 0.72);
+  return (
+    <span
+      className="inline-flex shrink-0 items-center justify-center rounded-[4px] bg-white/95"
+      style={{ width: size, height: size }}
+    >
+      <img src={`/db-logos/${scheme}.svg`} alt="" aria-hidden="true" width={inner} height={inner} />
+    </span>
+  );
+}
+
 type Feedback = { kind: 'ok' | 'error'; message: string } | null;
 
 export default function DatabaseSettings() {
@@ -192,6 +233,7 @@ export default function DatabaseSettings() {
           ) : (
             <>
               <div className="flex items-center gap-2">
+                {status.adapter && <AdapterLogo scheme={status.adapter.scheme} />}
                 {status.adapter?.remote ? (
                   <Cloud size={14} className="text-muted-foreground" />
                 ) : (
@@ -255,12 +297,13 @@ export default function DatabaseSettings() {
                         key={adapter.scheme}
                         type="button"
                         onClick={() => setUrl(adapter.example)}
-                        className={`px-2.5 py-1 rounded-md text-xs border transition-colors ${
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs border transition-colors ${
                           selected?.scheme === adapter.scheme
                             ? 'border-foreground/40 bg-accent text-foreground'
                             : 'border-border text-muted-foreground hover:bg-accent hover:text-foreground'
                         }`}
                       >
+                        <AdapterLogo scheme={adapter.scheme} size={14} />
                         {adapter.label}
                         {!adapter.installed && (
                           <span className="ml-1.5 opacity-50">·</span>
