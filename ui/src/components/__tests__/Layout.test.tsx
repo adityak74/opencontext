@@ -62,10 +62,10 @@ describe('Layout', () => {
     renderWithProviders(
       <Routes>
         <Route element={<Layout />}>
-          <Route path="/" element={<div>Home</div>} />
+          <Route path="/dashboard" element={<div>Home</div>} />
         </Route>
       </Routes>,
-      { initialEntries: ['/'] }
+      { initialEntries: ['/dashboard'] }
     );
 
     const dashboardLink = screen.getByText('Dashboard').closest('a');
@@ -76,10 +76,10 @@ describe('Layout', () => {
     renderWithProviders(
       <Routes>
         <Route element={<Layout />}>
-          <Route path="/" element={<div>Home</div>} />
+          <Route path="/dashboard" element={<div>Home</div>} />
         </Route>
       </Routes>,
-      { initialEntries: ['/'] }
+      { initialEntries: ['/dashboard'] }
     );
 
     const preferencesLink = screen.getByText('Preferences').closest('a');

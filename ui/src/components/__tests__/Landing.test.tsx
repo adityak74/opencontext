@@ -76,8 +76,28 @@ describe('Landing', () => {
     renderWithProviders();
 
     expect(
-      screen.getByText(/open-context migrates your full conversation history/i)
+      screen.getByText(/import chat history from any AI platform/i)
     ).toBeInTheDocument();
+  });
+
+  it('should render the supported databases section', () => {
+    const { container } = renderWithProviders();
+
+    expect(screen.getByText('Supports all of these')).toBeInTheDocument();
+    expect(screen.getByText('Bring your own database')).toBeInTheDocument();
+    // A vendor mark for each backend, twice over: the marquee scrolls two
+    // identical copies so the loop has no visible seam.
+    expect(container.querySelectorAll('img[src^="/db-logos/"]').length).toBe(28);
+    expect(container.querySelectorAll('img[src="/db-logos/postgres.svg"]').length).toBe(2);
+  });
+
+  it('names every supported database for screen readers, which cannot read the marquee', () => {
+    const { container } = renderWithProviders();
+
+    const marquee = container.querySelector('[aria-label^="Supported databases"]');
+    expect(marquee).toBeInTheDocument();
+    expect(marquee?.getAttribute('aria-label')).toContain('PostgreSQL');
+    expect(marquee?.getAttribute('aria-label')).toContain('SurrealDB');
   });
 
   it('should render how it works section', () => {
