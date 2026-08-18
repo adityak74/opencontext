@@ -104,7 +104,7 @@ export async function createRedisDriver(dsn: ParsedDsn): Promise<DocumentDriver>
   const client = createClient({
     url,
     socket: {
-      reconnectStrategy(retries: number, cause: Error): number | false {
+      reconnectStrategy(retries: number): number | false {
         // node-redis retries the *first* connection forever by default, so a
         // typo in the host or a Redis that is not running would hang
         // `createStore` rather than fail it. Nothing about a URL that has never
@@ -137,20 +137,34 @@ export async function createRedisDriver(dsn: ParsedDsn): Promise<DocumentDriver>
   /** Set once the caller has closed the store, so shutdown stays idempotent. */
   let closed = false;
 
+  /**
+   * Drop the client without waiting for the server to answer.
+   *
+   * A client left half-open keeps a socket and a reconnect timer, and those keep
+   * the whole process alive long after the caller has finished with the store.
+   */
+  function abandon(): void {
+    try {
+      if (client.destroy) {
+        client.destroy();
+      } else {
+        // What node-redis called the same thing before v5.
+        void client.disconnect?.().catch(() => {});
+      }
+    } catch {
+      // Already gone.
+    }
+  }
+
   async function shutdown(): Promise<void> {
     try {
       // `quit` is deprecated in favour of `close` from node-redis v5 on; both
       // wait for in-flight commands.
       await (client.close ? client.close() : client.quit());
     } catch {
-      // The socket was already gone, so there was nobody to answer QUIT. Drop
-      // the client outright — a shutdown path must not throw, and a client left
-      // half-open keeps a reconnect timer and the process alive with it.
-      try {
-        client.destroy?.();
-      } catch {
-        // Already destroyed.
-      }
+      // The socket was already gone, so there was nobody to answer QUIT. A
+      // shutdown path must not throw, so tear the client down instead.
+      abandon();
     }
   }
 
@@ -162,14 +176,9 @@ export async function createRedisDriver(dsn: ParsedDsn): Promise<DocumentDriver>
       try {
         await client.connect();
       } catch (error) {
-        // A connect that never succeeded still leaves a socket and a retry
-        // timer behind. Tear them down before reporting, or the process hangs
-        // long after the caller has given up.
-        try {
-          client.destroy?.();
-        } catch {
-          // Nothing was open in the first place.
-        }
+        // A connect that never succeeded can still leave a socket and a retry
+        // timer behind. Tear them down before reporting the failure.
+        abandon();
         closed = true;
         throw error;
       }
