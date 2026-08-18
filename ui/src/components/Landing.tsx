@@ -58,6 +58,30 @@ const HOW_IT_WORKS = [
   },
 ];
 
+/**
+ * Every backend the context store supports, in the order they scroll past.
+ *
+ * `scheme` is both the DSN scheme it is selected with and the filename of its
+ * vendor mark in `public/db-logos`. The in-memory backend is deliberately absent
+ * — there is no vendor behind it and so no logo to show.
+ */
+const BACKENDS = [
+  { scheme: 'postgres', label: 'PostgreSQL' },
+  { scheme: 'sqlite', label: 'SQLite' },
+  { scheme: 'mongodb', label: 'MongoDB' },
+  { scheme: 'mysql', label: 'MySQL' },
+  { scheme: 'redis', label: 'Redis' },
+  { scheme: 'duckdb', label: 'DuckDB' },
+  { scheme: 'surrealdb', label: 'SurrealDB' },
+  { scheme: 'd1', label: 'Cloudflare D1' },
+  { scheme: 'mssql', label: 'SQL Server' },
+  { scheme: 'dynamodb', label: 'DynamoDB' },
+  { scheme: 'firestore', label: 'Firestore' },
+  { scheme: 'libsql', label: 'libSQL / Turso' },
+  { scheme: 'cloudsql', label: 'Cloud SQL' },
+  { scheme: 'json', label: 'JSON file' },
+];
+
 const DOCKER_CMD = 'docker run -p 3000:3000 -v opencontext-data:/root/.opencontext adityakarnam/opencontext:latest';
 
 const MCP_SNIPPET = `{
@@ -110,6 +134,7 @@ export default function Landing() {
 
         <nav className="hidden md:flex items-center gap-6 text-sm text-muted-foreground">
           <a href="#features" className="hover:text-foreground transition-colors">Features</a>
+          <a href="#databases" className="hover:text-foreground transition-colors">Databases</a>
           <a href="#how-it-works" className="hover:text-foreground transition-colors">How it works</a>
           <a href="#deploy" className="hover:text-foreground transition-colors">Deploy</a>
           <a href="/blog/" className="hover:text-foreground transition-colors">Blog</a>
@@ -222,6 +247,50 @@ export default function Landing() {
             ))}
           </div>
         </div>
+      </section>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Databases                                                           */}
+      {/* ------------------------------------------------------------------ */}
+      <section id="databases" className="py-20 border-t border-border overflow-hidden">
+        <div className="max-w-5xl mx-auto px-6 md:px-12 text-center mb-12">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-3">
+            Bring your own database
+          </p>
+          <h2 className="text-3xl md:text-4xl font-semibold tracking-tight">
+            Supports all of these
+          </h2>
+          <p className="text-sm text-muted-foreground leading-relaxed mt-4 max-w-2xl mx-auto">
+            Start on the zero-config JSON file. Outgrow it and point open-context at whatever you
+            already run — the CLI, the web UI, and the MCP tools all behave exactly the same.
+          </p>
+        </div>
+
+        {/* Two identical copies scroll as one track; see `animate-marquee` in index.css. */}
+        <div
+          className="relative flex overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_6%,black_94%,transparent)]"
+          aria-label={`Supported databases: ${BACKENDS.map((b) => b.label).join(', ')}`}
+        >
+          <div className="flex w-max gap-3 pr-3 animate-marquee hover:[animation-play-state:paused]">
+            {[...BACKENDS, ...BACKENDS].map(({ scheme, label }, index) => (
+              <div
+                key={`${scheme}-${index}`}
+                // The screen reader gets the list once, from the label above.
+                aria-hidden="true"
+                className="flex items-center gap-2.5 rounded-lg border border-border bg-card px-4 py-3"
+              >
+                <span className="inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-white/95">
+                  <img src={`/db-logos/${scheme}.svg`} alt="" width={18} height={18} />
+                </span>
+                <span className="text-sm text-muted-foreground whitespace-nowrap">{label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <p className="text-center text-sm text-muted-foreground mt-12 px-6">
+          Fifteen backends in all, and your data never leaves infrastructure you control.
+        </p>
       </section>
 
       {/* ------------------------------------------------------------------ */}

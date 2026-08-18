@@ -11,6 +11,10 @@ import { ConversationNormalizer } from './parsers/normalizer.js';
 import { MarkdownFormatter } from './formatters/markdown.js';
 import { OllamaPreferenceAnalyzer } from './analyzers/ollama-preferences.js';
 import { ensureDir, writeFile, copyImages } from './utils/file.js';
+import { createStore, ADAPTERS, isDriverInstalled } from './store/index.js';
+import { migrateStore } from './store/migrate.js';
+import { resolveDatabase, writeDatabaseUrl, clearDatabaseUrl } from './store/config.js';
+import { redactDsn } from './store/dsn.js';
 import type { NormalizedConversation } from './parsers/types.js';
 
 const program = new Command();
@@ -231,4 +235,117 @@ function generateUserProfile(userJson: any): string {
 }
 
 // Parse CLI arguments
+
+// ---------------------------------------------------------------------------
+// db — inspect and switch the backing store (BYODB)
+// ---------------------------------------------------------------------------
+
+const db = program.command('db').description('Manage the database backing the context store');
+
+db.command('status')
+  .description('Show the current database and how it was configured')
+  .action(async () => {
+    const resolution = resolveDatabase();
+    console.log(chalk.blue('\nopencontext database\n'));
+    console.log(`  ${chalk.gray('Connection')}  ${resolution.redacted}`);
+    console.log(`  ${chalk.gray('Source')}      ${resolution.source}`);
+    try {
+      const store = await createStore(resolution.url);
+      const [contexts, bubbles] = await Promise.all([
+        store.listContexts(),
+        store.listBubbles(),
+      ]);
+      console.log(`  ${chalk.gray('Adapter')}     ${store.info.label}`);
+      console.log(`  ${chalk.gray('Status')}      ${chalk.green('connected')}`);
+      console.log(`  ${chalk.gray('Contents')}    ${contexts.length} contexts, ${bubbles.length} bubbles\n`);
+      await store.close();
+    } catch (error) {
+      console.log(`  ${chalk.gray('Status')}      ${chalk.red('not connected')}`);
+      console.error(`\n${chalk.red(error instanceof Error ? error.message : String(error))}\n`);
+      process.exitCode = 1;
+    }
+  });
+
+db.command('adapters')
+  .description('List every supported database and whether its driver is installed')
+  .action(async () => {
+    console.log(chalk.blue('\nSupported databases\n'));
+    for (const adapter of ADAPTERS) {
+      const installed = await isDriverInstalled(adapter.scheme);
+      const mark = installed ? chalk.green('✓') : chalk.gray('·');
+      const need = adapter.packageName && !installed
+        ? chalk.gray(`  npm install ${adapter.packageName}`)
+        : '';
+      console.log(`  ${mark} ${adapter.label.padEnd(24)} ${chalk.gray(adapter.example)}${need}`);
+    }
+    console.log(`\n  ${chalk.green('✓')} ready    ${chalk.gray('·')} driver not installed\n`);
+  });
+
+db.command('test <url>')
+  .description('Try connecting to a database without saving it')
+  .action(async (url: string) => {
+    try {
+      const store = await createStore(url);
+      await store.ping();
+      console.log(chalk.green(`\n✓ Connected to ${store.info.label} at ${store.info.target}\n`));
+      await store.close();
+    } catch (error) {
+      console.error(chalk.red(`\n✗ ${error instanceof Error ? error.message : String(error)}\n`));
+      process.exit(1);
+    }
+  });
+
+db.command('use <url>')
+  .description('Save a database connection as the default store')
+  .action(async (url: string) => {
+    try {
+      // Prove it works before persisting it, so a typo cannot leave the CLI and
+      // the MCP server pointed at something unusable.
+      const store = await createStore(url);
+      await store.ping();
+      await store.close();
+      writeDatabaseUrl(url);
+      console.log(chalk.green(`\n✓ Now using ${redactDsn(url)}\n`));
+    } catch (error) {
+      console.error(chalk.red(`\n✗ ${error instanceof Error ? error.message : String(error)}\n`));
+      process.exit(1);
+    }
+  });
+
+db.command('reset')
+  .description('Forget the saved connection and go back to the default JSON store')
+  .action(() => {
+    clearDatabaseUrl();
+    console.log(chalk.green(`\n✓ Reset to ${resolveDatabase().redacted}\n`));
+  });
+
+db.command('migrate')
+  .description('Copy all contexts and bubbles into another database')
+  .requiredOption('--to <url>', 'Target connection string')
+  .option('--from <url>', 'Source connection string (defaults to the current store)')
+  .option('--replace', 'Empty the target before copying', false)
+  .action(async (options: { to: string; from?: string; replace: boolean }) => {
+    const sourceUrl = options.from ?? resolveDatabase().url;
+    let source;
+    let target;
+    try {
+      source = await createStore(sourceUrl);
+      target = await createStore(options.to);
+      console.log(chalk.blue(`\nMigrating ${source.info.label} → ${target.info.label}\n`));
+
+      const result = await migrateStore(source, target, {
+        mode: options.replace ? 'replace' : 'copy',
+      });
+      console.log(chalk.green(`✓ Copied ${result.contexts} contexts and ${result.bubbles} bubbles`));
+      console.log(chalk.gray(`  The source store was not modified.\n`));
+    } catch (error) {
+      console.error(chalk.red(`\n✗ ${error instanceof Error ? error.message : String(error)}\n`));
+      process.exit(1);
+    } finally {
+      await source?.close().catch(() => undefined);
+      await target?.close().catch(() => undefined);
+    }
+  });
+
+
 program.parse();

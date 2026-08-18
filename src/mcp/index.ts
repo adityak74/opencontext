@@ -3,9 +3,9 @@
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { createMcpServer } from './server.js';
 
-const storePath = process.env.OPENCONTEXT_STORE_PATH || undefined;
-
-const server = createMcpServer(storePath);
+// The store is resolved from the environment and saved config inside the server,
+// so nothing needs to be passed in here.
+const server = createMcpServer();
 const transport = new StdioServerTransport();
 
 server.connect(transport).catch((error) => {

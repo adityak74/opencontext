@@ -160,3 +160,30 @@
     min-height: 100vh;
   }
 }
+
+/* ===== Database marquee ===== */
+/*
+ * The track holds two identical copies of the backend list, so shifting it by
+ * exactly half its width lands the second copy where the first began and the
+ * loop is seamless. That only holds if the trailing gap is padded to match the
+ * gaps between items — otherwise half the track is half a gap short and the
+ * seam visibly jumps.
+ */
+@theme {
+  --animate-marquee: marquee 45s linear infinite;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee {
+    animation: none;
+  }
+}

@@ -1,9 +1,19 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { createStore } from './store.js';
+import { createStoreManager } from '../store/manager.js';
 
-export function createMcpServer(storePath?: string) {
-  const store = createStore(storePath);
+/**
+ * @param databaseUrl Optional connection string. When omitted the store is
+ * resolved from OPENCONTEXT_DB_URL, then the saved config, then the legacy
+ * OPENCONTEXT_STORE_PATH, then the default JSON file.
+ */
+export function createMcpServer(databaseUrl?: string) {
+  const manager = createStoreManager();
+  // The backend connects on first tool call rather than at construction, so an
+  // unreachable database surfaces as a tool error instead of preventing the MCP
+  // server from starting at all.
+  const store = () =>
+    databaseUrl ? manager.reconnect(databaseUrl).then(() => manager.get()) : manager.get();
 
   const server = new McpServer({
     name: 'opencontext',
@@ -33,7 +43,7 @@ export function createMcpServer(storePath?: string) {
         .describe('ID of the bubble (project) to associate this context with'),
     },
     async (args) => {
-      const entry = store.saveContext(
+      const entry = await (await store()).saveContext(
         args.content,
         args.tags || [],
         args.source || 'chat',
@@ -57,7 +67,7 @@ export function createMcpServer(storePath?: string) {
       query: z.string().describe('Search query to find matching contexts'),
     },
     async (args) => {
-      const results = store.recallContext(args.query);
+      const results = await (await store()).recallContext(args.query);
       if (results.length === 0) {
         return {
           content: [
@@ -95,7 +105,7 @@ export function createMcpServer(storePath?: string) {
         .describe('Filter by tag (e.g. "preference", "code")'),
     },
     async (args) => {
-      const results = store.listContexts(args.tag);
+      const results = await (await store()).listContexts(args.tag);
       if (results.length === 0) {
         return {
           content: [
@@ -132,7 +142,7 @@ export function createMcpServer(storePath?: string) {
       id: z.string().describe('The ID of the context to delete'),
     },
     async (args) => {
-      const deleted = store.deleteContext(args.id);
+      const deleted = await (await store()).deleteContext(args.id);
       return {
         content: [
           {
@@ -155,7 +165,7 @@ export function createMcpServer(storePath?: string) {
         .describe('Space-separated search terms (all must match)'),
     },
     async (args) => {
-      const results = store.searchContexts(args.query);
+      const results = await (await store()).searchContexts(args.query);
       if (results.length === 0) {
         return {
           content: [
@@ -200,7 +210,7 @@ export function createMcpServer(storePath?: string) {
         .describe('Bubble ID to assign (null to unassign from bubble)'),
     },
     async (args) => {
-      const updated = store.updateContext(args.id, args.content, args.tags, args.bubbleId);
+      const updated = await (await store()).updateContext(args.id, args.content, args.tags, args.bubbleId);
       if (!updated) {
         return {
           content: [
@@ -237,7 +247,7 @@ export function createMcpServer(storePath?: string) {
         .describe('Optional description of what this bubble is for'),
     },
     async (args) => {
-      const bubble = store.createBubble(args.name, args.description);
+      const bubble = await (await store()).createBubble(args.name, args.description);
       return {
         content: [
           {
@@ -254,18 +264,21 @@ export function createMcpServer(storePath?: string) {
     'List all bubbles (project workspaces).',
     {},
     async () => {
-      const bubbles = store.listBubbles();
+      const bubbles = await (await store()).listBubbles();
       if (bubbles.length === 0) {
         return {
           content: [{ type: 'text' as const, text: 'No bubbles created yet.' }],
         };
       }
-      const formatted = bubbles
-        .map((b) => {
-          const contexts = store.listContextsByBubble(b.id);
-          return `[${b.id}] ${b.name}${b.description ? ` — ${b.description}` : ''} (${contexts.length} context${contexts.length === 1 ? '' : 's'})`;
-        })
-        .join('\n');
+      const db = await store();
+      const formatted = (
+        await Promise.all(
+          bubbles.map(async (b) => {
+            const contexts = await db.listContextsByBubble(b.id);
+            return `[${b.id}] ${b.name}${b.description ? ` — ${b.description}` : ''} (${contexts.length} context${contexts.length === 1 ? '' : 's'})`;
+          }),
+        )
+      ).join('\n');
       return {
         content: [{ type: 'text' as const, text: `${bubbles.length} bubble(s):\n\n${formatted}` }],
       };
@@ -279,13 +292,13 @@ export function createMcpServer(storePath?: string) {
       id: z.string().describe('The ID of the bubble'),
     },
     async (args) => {
-      const bubble = store.getBubble(args.id);
+      const bubble = await (await store()).getBubble(args.id);
       if (!bubble) {
         return {
           content: [{ type: 'text' as const, text: `No bubble found with ID "${args.id}".` }],
         };
       }
-      const contexts = store.listContextsByBubble(args.id);
+      const contexts = await (await store()).listContextsByBubble(args.id);
       const ctxText =
         contexts.length === 0
           ? 'No contexts in this bubble.'
@@ -318,7 +331,7 @@ export function createMcpServer(storePath?: string) {
         .describe('New description (omit to leave unchanged)'),
     },
     async (args) => {
-      const updated = store.updateBubble(args.id, args.name, args.description);
+      const updated = await (await store()).updateBubble(args.id, args.name, args.description);
       if (!updated) {
         return {
           content: [{ type: 'text' as const, text: `No bubble found with ID "${args.id}".` }],
@@ -346,7 +359,7 @@ export function createMcpServer(storePath?: string) {
         .describe('If true, also delete all contexts inside the bubble (default: false)'),
     },
     async (args) => {
-      const deleted = store.deleteBubble(args.id, args.deleteContexts ?? false);
+      const deleted = await (await store()).deleteBubble(args.id, args.deleteContexts ?? false);
       return {
         content: [
           {

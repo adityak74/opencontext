@@ -1,0 +1,112 @@
+# Databases for BYODB conformance testing.
+#
+#   docker compose -f docker-compose.test.yml up -d
+#   npm run test:backends
+#   docker compose -f docker-compose.test.yml down -v
+#
+# Every service binds a non-default host port so it cannot collide with a real
+# database already running on the machine.
+#
+# The connection strings the suite expects:
+#
+#   OPENCONTEXT_TEST_POSTGRES_URL="postgres://opencontext:opencontext@127.0.0.1:55432/opencontext"
+#   OPENCONTEXT_TEST_MYSQL_URL="mysql://opencontext:opencontext@127.0.0.1:53306/opencontext"
+#   OPENCONTEXT_TEST_MSSQL_URL="mssql://sa:OpenContext!2026@localhost:51433/opencontext"
+#   OPENCONTEXT_TEST_MONGODB_URL="mongodb://127.0.0.1:57017/opencontext"
+#   OPENCONTEXT_TEST_REDIS_URL="redis://127.0.0.1:56379"
+#   OPENCONTEXT_TEST_SURREALDB_URL="surrealdb://root:root@127.0.0.1:58000/test/test"
+#   OPENCONTEXT_TEST_DYNAMODB_URL="dynamodb://us-east-1/opencontext?endpoint=http://127.0.0.1:58001&accessKeyId=test&secretAccessKey=test"
+#   OPENCONTEXT_TEST_DUCKDB=1
+#
+# SQL Server must be addressed as `localhost` rather than `127.0.0.1`: the driver
+# encrypts by default, and TLS forbids an IP address as the SNI server name.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: opencontext
+      POSTGRES_PASSWORD: opencontext
+      POSTGRES_DB: opencontext
+    ports:
+      - '55432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U opencontext']
+      interval: 3s
+      retries: 20
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: opencontext
+      MYSQL_DATABASE: opencontext
+      MYSQL_USER: opencontext
+      MYSQL_PASSWORD: opencontext
+    ports:
+      - '53306:3306'
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', '127.0.0.1', '-popencontext']
+      interval: 5s
+      retries: 30
+
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: 'Y'
+      MSSQL_SA_PASSWORD: 'OpenContext!2026'
+      MSSQL_PID: Developer
+    ports:
+      - '51433:1433'
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -C -Q "SELECT 1"
+      interval: 5s
+      retries: 30
+      start_period: 20s
+
+  # Postgres and MySQL create their database from an environment variable; the
+  # SQL Server image has no equivalent, so without this the suite connects to a
+  # database that does not exist and the server reports it as a login failure.
+  mssql-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    depends_on:
+      mssql:
+        condition: service_healthy
+    restart: on-failure
+    entrypoint:
+      - /bin/bash
+      - -c
+      - >-
+        /opt/mssql-tools18/bin/sqlcmd -S mssql -U sa -P 'OpenContext!2026' -C
+        -Q "IF DB_ID('opencontext') IS NULL CREATE DATABASE opencontext"
+
+  mongodb:
+    image: mongo:8
+    ports:
+      - '57017:27017'
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', 'db.runCommand({ping:1})']
+      interval: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '56379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 3s
+      retries: 20
+
+  surrealdb:
+    image: surrealdb/surrealdb:latest
+    command: start --user root --pass root --bind 0.0.0.0:8000 memory
+    ports:
+      - '58000:8000'
+
+  dynamodb:
+    image: amazon/dynamodb-local:latest
+    command: -jar DynamoDBLocal.jar -inMemory -sharedDb
+    ports:
+      - '58001:8000'
