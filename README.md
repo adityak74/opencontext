@@ -150,6 +150,11 @@ Drivers are **optional peer dependencies** — nothing is installed until you as
 that needs it, so the default install and the Docker image stay small. Pick a backend whose
 driver is missing and opencontext tells you exactly what to run.
 
+> **SQL Server and IP addresses.** The driver encrypts by default, and TLS forbids an IP
+> address as the SNI server name, so `mssql://…@10.0.0.5:1433/db` fails with a `servername`
+> error. Address the server by hostname, or add `?encrypt=false` for a local instance on a
+> trusted network.
+
 ### Managed services
 
 Most managed databases speak a protocol already listed above, so they need no special support:
@@ -512,6 +517,10 @@ docker compose -f docker-compose.test.yml up -d
 npm run test:backends
 docker compose -f docker-compose.test.yml down -v
 ```
+
+`docker-compose.test.yml` lists the connection string to export for each service. A backend
+whose connection string is not in the environment is skipped, so the suite is useful with any
+subset of them running.
 
 Every backend must pass the same conformance suite (`tests/store/conformance.ts`) unmodified —
 it is the only definition of correct storage behaviour. It runs against JSON, SQLite and
