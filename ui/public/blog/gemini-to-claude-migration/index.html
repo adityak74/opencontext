@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/opencontext-logo.png" />
+  <title>Migrating From Google Gemini to Claude: What Transfers</title>
+  <meta name="description" content="open-context can't import a Gemini chat export yet, but it can convert Claude preferences into Gemini's custom-instructions format — here's what works." />
+  <link rel="canonical" href="https://open-context.dev/blog/gemini-to-claude-migration/" />
+  <meta property="og:title" content="Migrating From Google Gemini to Claude: What Transfers" />
+  <meta property="og:description" content="open-context can't import a Gemini chat export yet, but it can convert Claude preferences into Gemini's custom-instructions format — here's what works." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://open-context.dev/blog/gemini-to-claude-migration/" />
+  <meta property="og:image" content="https://open-context.dev/opencontext-logo.png" />
+  <meta property="article:published_time" content="2026-08-19" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Migrating From Google Gemini to Claude: What Transfers" />
+  <meta name="twitter:description" content="What actually moves from Google Gemini to Claude today, what Google Takeout gives you, and how MCP memory sidesteps the import problem." />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BlogPosting",
+        "headline": "Migrating From Google Gemini to Claude: What Transfers",
+        "description": "open-context can't import a Gemini chat export yet, but it can convert Claude preferences into Gemini's custom-instructions format — here's what works.",
+        "datePublished": "2026-08-19",
+        "dateModified": "2026-08-19",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://open-context.dev/blog/gemini-to-claude-migration/" },
+        "image": "https://open-context.dev/opencontext-logo.png",
+        "author": { "@type": "Organization", "name": "open-context", "url": "https://open-context.dev/" },
+        "publisher": {
+          "@type": "Organization",
+          "name": "open-context",
+          "logo": { "@type": "ImageObject", "url": "https://open-context.dev/opencontext-logo.png" }
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Can open-context import my Google Gemini chat history today?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Not yet. open-context currently parses full conversation history only from ChatGPT exports. Gemini import is a tracked roadmap item, not a shipped feature." }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I export my Claude preferences to use with Gemini?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. open-context's export pipeline already includes a Gemini exporter that converts your preferences and memory into a Gemini-formatted custom-instructions text file, ready to paste into Gemini's saved-info settings or a custom Gem." }
+          },
+          {
+            "@type": "Question",
+            "name": "What does a Google Takeout export of Gemini activity contain?",
+            "acceptedAnswer": { "@type": "Answer", "text": "If you select My Activity, then Gemini Apps, and set the format to JSON, Google Takeout gives you a JSON activity log with your prompts, Gemini's responses, and timestamps. It's a raw activity export, not a structured conversation file the way ChatGPT's conversations.json is." }
+          },
+          {
+            "@type": "Question",
+            "name": "Is Gemini import going to be added to open-context?",
+            "acceptedAnswer": { "@type": "Answer", "text": "It's on the public roadmap. open-context's parser layer is built so each provider is a self-contained module, so adding Gemini support means writing one new parser against the Takeout JSON schema rather than reworking the pipeline." }
+          },
+          {
+            "@type": "Question",
+            "name": "Does any of this send my Gemini or Claude data to an external server?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. Every part of open-context — the CLI, the web UI, the exporters, and the MCP server — runs on your own machine. Nothing described here uploads your conversations anywhere." }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  <style>
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Regular-Trial-BF63f6cbd970ee9.otf') format('opentype'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Medium-Trial-BF63f6cbdb24b6d.otf') format('opentype'); font-weight: 500; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Bold-Trial-BF63f6cbda1877f.otf') format('opentype'); font-weight: 700; font-style: normal; }
+
+    :root {
+      --bg: #000000;
+      --card: #0a0a0a;
+      --border: #262626;
+      --fg: #fafafa;
+      --muted: #a1a1aa;
+      --accent: #4ade80;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Styrene A', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.7;
+    }
+    a { color: inherit; }
+    header {
+      position: sticky; top: 0; z-index: 40;
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 0.9rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(6px);
+    }
+    header .brand { display: flex; align-items: center; gap: 0.5rem; margin-right: auto; text-decoration: none; }
+    header .brand img { width: 32px; height: 32px; border-radius: 3px; }
+    header .brand span { font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em; }
+    header nav { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--muted); }
+    header nav a { text-decoration: none; }
+    header nav a:hover, header nav a.active { color: var(--fg); }
+
+    main { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+    .meta { font-size: 0.8rem; color: var(--muted); font-family: monospace; margin-bottom: 0.75rem; }
+    h1 { font-size: 2.1rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; margin: 0 0 1.5rem; }
+    h2 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em; margin: 2.5rem 0 1rem; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 1.75rem 0 0.6rem; }
+    p { color: #e4e4e7; margin: 0 0 1.1rem; }
+    p.lead { font-size: 1.1rem; color: var(--fg); }
+    ul, ol { color: #e4e4e7; padding-left: 1.3rem; margin: 0 0 1.1rem; }
+    li { margin-bottom: 0.4rem; }
+    code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.4rem; font-size: 0.85em; }
+    pre { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; overflow-x: auto; font-size: 0.85rem; }
+    pre code { border: none; padding: 0; background: none; }
+    a.inline-link { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+    .takeaways {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0 2.5rem;
+    }
+    .takeaways p.label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; color: var(--accent); font-weight: 600; margin: 0 0 0.75rem; }
+    .takeaways ul { margin: 0; }
+    .table-wrap { overflow-x: auto; margin: 0 0 1.1rem; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+    th { color: var(--muted); font-weight: 600; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+    .cta {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin: 2.5rem 0;
+      text-align: center;
+    }
+    .cta a {
+      display: inline-block;
+      margin-top: 0.75rem;
+      background: var(--fg);
+      color: #000;
+      font-weight: 600;
+      padding: 0.55rem 1.25rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem; display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 0.75rem;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    footer a { text-decoration: none; margin-left: 1rem; }
+    footer a:hover { color: var(--fg); }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">
+      <img src="/opencontext-logo.png" alt="open-context" />
+      <span>open-context</span>
+    </a>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/blog/" class="active">Blog</a>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <article>
+      <div class="meta">August 19, 2026 · 6 min read</div>
+      <h1>Migrating From Google Gemini to Claude: What Transfers</h1>
+
+      <p class="lead">
+        open-context can't import a Google Gemini chat export yet — that's an open roadmap item, not a
+        supported path today. What it can do right now is the reverse: convert your Claude preferences
+        and memory into a Gemini-formatted custom-instructions file, so the two assistants stay in sync
+        while you decide where to land. This guide covers exactly what works today, what a Google Takeout
+        export of your Gemini activity actually contains, and a model-agnostic way to carry context
+        between assistants without waiting on either importer.
+      </p>
+
+      <div class="takeaways">
+        <p class="label">Key takeaways</p>
+        <ul>
+          <li>open-context imports full conversation history only from ChatGPT today. Gemini import is on the roadmap but not implemented.</li>
+          <li>open-context already ships a Gemini exporter — it turns your Claude preferences/memory into a Gemini custom-instructions text file.</li>
+          <li>Google Takeout can export your Gemini Apps activity as JSON (My Activity → Gemini Apps), but it's a raw activity log, not a portable conversation format like ChatGPT's export.</li>
+          <li>open-context's MCP server gives Claude persistent memory you maintain directly, so your context can follow you between assistants without a Gemini-specific importer at all.</li>
+          <li>Every part of this — the exporter, Takeout files, and MCP memory — runs on your own machine. Nothing is uploaded anywhere.</li>
+        </ul>
+      </div>
+
+      <h2>What actually transfers from Gemini to Claude today</h2>
+      <p>
+        If you're looking for a one-command way to pull your Gemini chat history into Claude the way
+        <a class="inline-link" href="/blog/migrate-chatgpt-to-claude/">open-context migrates ChatGPT exports</a>,
+        it doesn't exist yet. Google Gemini support is listed as a planned, unchecked item on the
+        open-context roadmap — the parser that would read a Gemini export and normalize it into
+        Claude-ready markdown hasn't been written.
+      </p>
+      <p>
+        What does transfer today runs in the other direction. open-context's export pipeline already
+        supports writing your Claude preferences and memory out to a Gemini-compatible format, alongside
+        Claude and ChatGPT. If you've built up preferences in open-context — communication style, technical
+        profile, current projects — you can export a <code>gemini-instructions.txt</code> file today and
+        paste it into Gemini's saved info or a custom Gem, even though the reverse (Gemini → open-context)
+        isn't built yet.
+      </p>
+
+      <h2>Why there's no Gemini import parser yet</h2>
+      <p>
+        open-context's conversion pipeline is deliberately split into three stages — parse, normalize,
+        generate — with one parser module per source provider. ChatGPT's parser reads
+        <code>conversations.json</code> and walks its message tree into a common schema; a Gemini parser
+        would do the same against Google Takeout's Gemini Apps activity format. The architecture already
+        supports adding it as a self-contained module without touching the rest of the pipeline — it just
+        hasn't been built yet, in part because Gemini's export isn't structured as a per-conversation file
+        the way ChatGPT's is (more on that below).
+      </p>
+
+      <h2>Exporting Claude context into Gemini format today</h2>
+      <p>
+        The Gemini exporter that does exist takes your <code>preferences.md</code>-equivalent data —
+        role, industry, technical profile, current projects, response-style settings, and any custom
+        instructions you've written — and formats it as plain text sections Gemini understands: an
+        "About me" block, a "Current focus" block, and a "Response style" block.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Direction</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr><td>Claude preferences → Gemini instructions</td><td>Supported today</td></tr>
+            <tr><td>Gemini chat history → Claude preferences/memory</td><td>Not yet — roadmap item</td></tr>
+            <tr><td>ChatGPT chat history → Claude preferences/memory</td><td>Supported today</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        In practice, this makes open-context useful for keeping Gemini's custom instructions roughly
+        aligned with whatever you've already set up in Claude, even while full Gemini chat import is
+        still pending.
+      </p>
+
+      <h2>What's actually inside a Google Takeout Gemini export</h2>
+      <p>
+        If you want to look at your own Gemini history in the meantime, Google Takeout can produce it —
+        you just have to know where to look. Select <strong>My Activity</strong>, not the top-level
+        "Gemini" category (that one only covers saved Gems), then narrow it to <strong>Gemini Apps</strong>
+        and set the output format to JSON instead of the HTML default. The result is an activity log —
+        typically something like <code>Takeout/My Activity/Gemini Apps/MyActivity.json</code> — containing
+        your prompts, Gemini's responses, and timestamps for each interaction.
+      </p>
+      <p>
+        That's meaningfully different from ChatGPT's export. ChatGPT's <code>conversations.json</code> is
+        a purpose-built conversation tree with stable per-conversation IDs, which is exactly what
+        open-context's parser walks today. A Takeout activity log is a flatter, more general-purpose
+        record of "things you did in Google products" — usable, but it needs a dedicated parser to turn
+        into the same normalized schema, which is the work the roadmap item covers.
+      </p>
+
+      <h2>A model-agnostic alternative: MCP persistent memory</h2>
+      <p>
+        If the goal isn't a one-time import but rather "I don't want to keep re-explaining myself to
+        whichever assistant I'm using," open-context's
+        <a class="inline-link" href="/blog/mcp-persistent-memory/">MCP server</a> sidesteps the whole
+        import question. Once connected to Claude Code or Claude Desktop, its <code>save_context</code>
+        and <code>recall_context</code> tools let Claude write and retrieve notes from a local store —
+        <code>~/.opencontext/contexts.json</code> by default — that you build up going forward, independent
+        of any provider's export format. It doesn't recover your Gemini history retroactively, but it means
+        you stop losing new context the moment you set it up.
+      </p>
+
+      <h2>Contributing a Gemini import parser</h2>
+      <p>
+        open-context is open source, and the pattern for adding a source is documented: study the
+        provider's export format, write a parser under <code>src/parsers/</code> that maps its roles and
+        content into the normalized schema, add anonymized fixture data, and register it in the CLI. A
+        Gemini parser against the Takeout JSON format described above is exactly the kind of contribution
+        the project is structured to accept.
+      </p>
+
+      <div class="cta">
+        <p style="margin:0; color: var(--muted);">Export your Claude context to Gemini format in minutes — free and local.</p>
+        <a href="/">Get started with open-context →</a>
+      </div>
+
+      <h2>FAQ</h2>
+
+      <h3>Can open-context import my Google Gemini chat history today?</h3>
+      <p>Not yet. open-context currently parses full conversation history only from ChatGPT exports. Gemini import is a tracked roadmap item, not a shipped feature.</p>
+
+      <h3>Can I export my Claude preferences to use with Gemini?</h3>
+      <p>Yes. open-context's export pipeline already includes a Gemini exporter that converts your preferences and memory into a Gemini-formatted custom-instructions text file, ready to paste into Gemini's saved-info settings or a custom Gem.</p>
+
+      <h3>What does a Google Takeout export of Gemini activity contain?</h3>
+      <p>If you select My Activity, then Gemini Apps, and set the format to JSON, Google Takeout gives you a JSON activity log with your prompts, Gemini's responses, and timestamps. It's a raw activity export, not a structured conversation file the way ChatGPT's conversations.json is.</p>
+
+      <h3>Is Gemini import going to be added to open-context?</h3>
+      <p>It's on the public roadmap. open-context's parser layer is built so each provider is a self-contained module, so adding Gemini support means writing one new parser against the Takeout JSON schema rather than reworking the pipeline.</p>
+
+      <h3>Does any of this send my Gemini or Claude data to an external server?</h3>
+      <p>No. Every part of open-context — the CLI, the web UI, the exporters, and the MCP server — runs on your own machine. Nothing described here uploads your conversations anywhere.</p>
+    </article>
+  </main>
+
+  <footer>
+    <span>open-context.dev — open source, self-hosted</span>
+    <div>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://hub.docker.com/r/adityakarnam/opencontext" target="_blank" rel="noopener noreferrer">Docker Hub</a>
+    </div>
+  </footer>
+</body>
+</html>

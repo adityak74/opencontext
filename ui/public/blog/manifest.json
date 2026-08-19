@@ -35,10 +35,15 @@
       "title": "Running an MCP Server in Docker: A Practical Guide",
       "publishedAt": "2026-08-17",
       "topicTag": "docker-mcp-server-setup"
+    },
+    {
+      "slug": "gemini-to-claude-migration",
+      "title": "Migrating From Google Gemini to Claude: What Transfers",
+      "publishedAt": "2026-08-19",
+      "topicTag": "gemini-to-claude-migration"
     }
   ],
   "backlog": [
-    { "topicTag": "gemini-to-claude-migration", "workingTitle": "Migrating from Google Gemini to Claude: What Transfers and What Doesn't" },
     { "topicTag": "ai-context-portability", "workingTitle": "AI Context Portability: Why Vendor Lock-In Is an Unsolved Problem" },
     { "topicTag": "bubbles-project-workspaces", "workingTitle": "Organizing AI Context by Project with open-context Bubbles" }
   ]
