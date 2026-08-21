@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/opencontext-logo.png" />
+  <title>AI Context Portability: Why Vendor Lock-In Persists</title>
+  <meta name="description" content="ChatGPT, Claude, and Gemini each ship memory, but none export to the others. Why AI context portability is still unsolved, and how to keep a copy you control." />
+  <link rel="canonical" href="https://open-context.dev/blog/ai-context-portability/" />
+  <meta property="og:title" content="AI Context Portability: Why Vendor Lock-In Persists" />
+  <meta property="og:description" content="ChatGPT, Claude, and Gemini each ship memory, but none export to the others. Why AI context portability is still unsolved, and how to keep a copy you control." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://open-context.dev/blog/ai-context-portability/" />
+  <meta property="og:image" content="https://open-context.dev/opencontext-logo.png" />
+  <meta property="article:published_time" content="2026-08-21" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="AI Context Portability: Why Vendor Lock-In Persists" />
+  <meta name="twitter:description" content="ChatGPT, Claude, and Gemini each ship memory, but none export to the others. Why AI context portability is still unsolved, and how to keep your own copy." />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BlogPosting",
+        "headline": "AI Context Portability: Why Vendor Lock-In Persists",
+        "description": "ChatGPT, Claude, and Gemini each ship memory, but none export to the others. Why AI context portability is still unsolved, and how to keep a copy you control.",
+        "datePublished": "2026-08-21",
+        "dateModified": "2026-08-21",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://open-context.dev/blog/ai-context-portability/" },
+        "image": "https://open-context.dev/opencontext-logo.png",
+        "author": { "@type": "Organization", "name": "open-context", "url": "https://open-context.dev/" },
+        "publisher": {
+          "@type": "Organization",
+          "name": "open-context",
+          "logo": { "@type": "ImageObject", "url": "https://open-context.dev/opencontext-logo.png" }
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What does \"AI context portability\" actually mean?",
+            "acceptedAnswer": { "@type": "Answer", "text": "It means being able to take the conversation history, communication preferences, and remembered facts you've built up with one AI assistant and carry them into a different one, in a format the new assistant can actually use — not just a ZIP file of raw logs." }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I export my memory from ChatGPT, Claude, or Gemini to use somewhere else?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Only partially, and only manually. ChatGPT's data export gives you a ZIP of your conversation history, but saved memories aren't included in that file — you copy them by hand from Settings. Claude and Gemini let you view and edit what they remember, but neither offers a one-click export into a competitor's format." }
+          },
+          {
+            "@type": "Question",
+            "name": "Does GDPR guarantee a right to move my AI chat data between providers?",
+            "acceptedAnswer": { "@type": "Answer", "text": "GDPR Article 20 gives EU users a right to receive their personal data in a structured, commonly used, machine-readable format. It requires a vendor to hand over your data — it does not require any AI vendor to read another vendor's memory schema, so the technical translation step is still left to you or a third-party tool." }
+          },
+          {
+            "@type": "Question",
+            "name": "Is open-context affiliated with Anthropic, OpenAI, or Google?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. open-context is an independent, open source project. It is not built, endorsed, or operated by Anthropic, OpenAI, or Google." }
+          },
+          {
+            "@type": "Question",
+            "name": "How does open-context keep my context portable?",
+            "acceptedAnswer": { "@type": "Answer", "text": "It parses a provider's export into a vendor-neutral schema, then generates Claude-ready preferences and memory files from it. The resulting store can live in a plain JSON file or any of 15 databases you choose, so your context stays under your control instead of locked inside one vendor's account." }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  <style>
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Regular-Trial-BF63f6cbd970ee9.otf') format('opentype'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Medium-Trial-BF63f6cbdb24b6d.otf') format('opentype'); font-weight: 500; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Bold-Trial-BF63f6cbda1877f.otf') format('opentype'); font-weight: 700; font-style: normal; }
+
+    :root {
+      --bg: #000000;
+      --card: #0a0a0a;
+      --border: #262626;
+      --fg: #fafafa;
+      --muted: #a1a1aa;
+      --accent: #4ade80;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Styrene A', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.7;
+    }
+    a { color: inherit; }
+    header {
+      position: sticky; top: 0; z-index: 40;
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 0.9rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(6px);
+    }
+    header .brand { display: flex; align-items: center; gap: 0.5rem; margin-right: auto; text-decoration: none; }
+    header .brand img { width: 32px; height: 32px; border-radius: 3px; }
+    header .brand span { font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em; }
+    header nav { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--muted); }
+    header nav a { text-decoration: none; }
+    header nav a:hover, header nav a.active { color: var(--fg); }
+
+    main { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+    .meta { font-size: 0.8rem; color: var(--muted); font-family: monospace; margin-bottom: 0.75rem; }
+    h1 { font-size: 2.1rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; margin: 0 0 1.5rem; }
+    h2 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em; margin: 2.5rem 0 1rem; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 1.75rem 0 0.6rem; }
+    p { color: #e4e4e7; margin: 0 0 1.1rem; }
+    p.lead { font-size: 1.1rem; color: var(--fg); }
+    ul, ol { color: #e4e4e7; padding-left: 1.3rem; margin: 0 0 1.1rem; }
+    li { margin-bottom: 0.4rem; }
+    code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.4rem; font-size: 0.85em; }
+    pre { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; overflow-x: auto; font-size: 0.85rem; }
+    pre code { border: none; padding: 0; background: none; }
+    a.inline-link { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+    .takeaways {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0 2.5rem;
+    }
+    .takeaways p.label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; color: var(--accent); font-weight: 600; margin: 0 0 0.75rem; }
+    .takeaways ul { margin: 0; }
+    .table-wrap { overflow-x: auto; margin: 0 0 1.1rem; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+    th { color: var(--muted); font-weight: 600; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+    .cta {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin: 2.5rem 0;
+      text-align: center;
+    }
+    .cta a {
+      display: inline-block;
+      margin-top: 0.75rem;
+      background: var(--fg);
+      color: #000;
+      font-weight: 600;
+      padding: 0.55rem 1.25rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem; display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 0.75rem;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    footer a { text-decoration: none; margin-left: 1rem; }
+    footer a:hover { color: var(--fg); }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">
+      <img src="/opencontext-logo.png" alt="open-context" />
+      <span>open-context</span>
+    </a>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/blog/" class="active">Blog</a>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <article>
+      <div class="meta">August 21, 2026 · 6 min read</div>
+      <h1>AI Context Portability: Why Vendor Lock-In Persists</h1>
+
+      <p class="lead">
+        AI context portability — carrying your conversation history and personalization data between
+        ChatGPT, Claude, and Gemini — is still unsolved in 2026. Every major assistant now ships its own
+        persistent memory, but none of them reads another vendor's memory format, and none offers a
+        one-click transfer to a competitor. The closest thing to a portability layer today is exporting
+        your own data and converting it yourself, which is exactly what tools like
+        <a class="inline-link" href="/">open-context</a> automate.
+      </p>
+
+      <div class="takeaways">
+        <p class="label">Key takeaways</p>
+        <ul>
+          <li>ChatGPT, Claude, and Gemini each launched automatic cross-conversation memory in 2026, but none of the three imports another vendor's memory.</li>
+          <li>OpenAI's official export gives you a ZIP of your ChatGPT conversation history, but saved memories aren't included in that file — you copy them out by hand from Settings → Personalization → Manage memories.</li>
+          <li>Anthropic rolled Claude's chat memory out to every plan, including free, with full visibility and edit control — but that memory lives inside your Claude account, not a portable file.</li>
+          <li>GDPR Article 20 gives EU users a right to receive their data in a portable format, but it doesn't require one AI vendor to read another's memory schema — that translation step is still yours to handle.</li>
+          <li>open-context closes that gap: it parses a chat export into a vendor-neutral schema, then generates Claude-ready preferences and memory, stored in a file or database you control.</li>
+        </ul>
+      </div>
+
+      <h2>What "AI context portability" actually means</h2>
+      <p>
+        Portability isn't just having a copy of your data — it's having a copy in a format the next
+        tool can actually use. A ZIP file full of raw JSON logs technically contains everything you said
+        to an assistant, but it doesn't tell a new assistant how you like to be talked to, what you're
+        working on, or what it already knows about you. Real portability means converting that raw
+        history into the specific fields a destination platform reads: a preferences field, a memory
+        field, a project's context window.
+      </p>
+      <p>
+        That distinction matters because every major AI vendor has now solved memory for their own
+        product, without solving portability between products.
+      </p>
+
+      <h2>Every vendor solved memory. None of them solved portability.</h2>
+      <p>
+        2026 was the year cross-conversation memory went from a novelty to a default feature across the
+        three largest assistants — and the year it became clear that each version is a retention
+        feature for its own ecosystem, not a shared standard.
+      </p>
+
+      <h3>ChatGPT</h3>
+      <p>
+        OpenAI's official export process is documented in its
+        <a class="inline-link" href="https://help.openai.com/en/articles/7260999-exporting-your-chatgpt-history-and-data" target="_blank" rel="noopener noreferrer">Help Center</a>:
+        go to Settings → Data Controls → Export data, and OpenAI emails you a ZIP containing your full
+        conversation history as HTML and JSON. That export is a genuine backup of what you've said — but
+        it does not include a separate file for ChatGPT's own saved memories. To keep those, you open
+        Settings → Personalization → Manage memories and copy the list out by hand.
+      </p>
+
+      <h3>Claude</h3>
+      <p>
+        Anthropic's own announcement on <a class="inline-link" href="https://www.anthropic.com/news/memory" target="_blank" rel="noopener noreferrer">chat memory</a>
+        describes memory as now available to every Claude user, including the free tier, with Pro and
+        Max users additionally getting project-scoped memory, full visibility into what's remembered,
+        and an incognito mode for chats that shouldn't be saved at all. That's a genuinely user-respecting
+        design — you can see and edit exactly what Claude keeps — but it's still a record that lives
+        inside your Claude account, not a file you can hand to a different assistant.
+      </p>
+
+      <h3>Gemini</h3>
+      <p>
+        Google's memory, now branded Personal Intelligence, works the same way: it's tied to your Google
+        account and configured through Gemini's own settings and Gems. It's built to make Gemini better
+        at being Gemini, not to read a memory file another vendor produced.
+      </p>
+      <p>
+        The pattern across all three is consistent: cross-session memory, yes; cross-vendor memory, no —
+        by design, each is a retention feature for one product, not a portable record you own.
+      </p>
+
+      <h2>What the law does and doesn't guarantee</h2>
+      <p>
+        It's tempting to assume data protection law already solved this. Under GDPR Article 20, EU users
+        have a right to receive personal data they've provided to a service "in a structured, commonly
+        used and machine-readable format," and to transmit it to another controller. That's a real,
+        enforceable right — and it's why every major AI vendor now offers some form of data export.
+      </p>
+      <p>
+        What it doesn't do is require ChatGPT to understand a Claude memory file, or Claude to understand
+        Gemini's. The regulation guarantees you get your data out; it says nothing about the destination
+        being able to read it. The technical translation between formats — the actual portability step —
+        is left to the user, or to a third-party tool built to do that translation.
+      </p>
+
+      <h2>What real portability requires</h2>
+      <p>Closing that gap takes three things none of the vendor-native memory features provide on their own:</p>
+      <ol>
+        <li><strong>A neutral schema</strong> — a common representation of a conversation (role, content, timestamp) that isn't tied to any one provider's export format.</li>
+        <li><strong>A conversion step</strong> — logic that maps a source provider's format into that schema, and then into a destination provider's specific fields (a preferences field, a memory field, a markdown file).</li>
+        <li><strong>Storage you control</strong> — somewhere the converted context lives that isn't locked inside a single vendor's account, so switching tools again later doesn't mean starting over.</li>
+      </ol>
+
+      <h2>How open-context approaches this</h2>
+      <p>
+        <a class="inline-link" href="/">open-context</a> is built around exactly that three-part gap. Its
+        pipeline parses a ChatGPT export's <code>conversations.json</code>, normalizes it into a common
+        schema shared across supported providers, and generates Claude-ready <code>preferences.md</code>
+        and <code>memory.md</code> — the same manual migration path described in
+        <a class="inline-link" href="/blog/migrate-chatgpt-to-claude/">our ChatGPT-to-Claude migration guide</a>,
+        automated instead of copy-pasted conversation by conversation.
+      </p>
+      <p>
+        It also ships an MCP server so Claude can save and recall context going forward, without the
+        churn of a one-time import each time you switch tools. And because the context store is a
+        pluggable adapter rather than a fixed JSON file, you can keep it in any of 15 backends — from a
+        local SQLite file to Postgres — instead of trusting it to live only inside one vendor's servers.
+        That's the same self-hosting argument we make in more detail in
+        <a class="inline-link" href="/blog/self-hosted-ai-context/">why self-hosting your AI context matters for privacy</a>:
+        portability and ownership are the same problem, viewed from two angles.
+      </p>
+
+      <div class="cta">
+        <p style="margin:0; color: var(--muted);">Keep a copy of your AI context that no single vendor controls.</p>
+        <a href="/">Get started with open-context →</a>
+      </div>
+
+      <h2>FAQ</h2>
+
+      <h3>What does "AI context portability" actually mean?</h3>
+      <p>It means being able to take the conversation history, communication preferences, and remembered facts you've built up with one AI assistant and carry them into a different one, in a format the new assistant can actually use — not just a ZIP file of raw logs.</p>
+
+      <h3>Can I export my memory from ChatGPT, Claude, or Gemini to use somewhere else?</h3>
+      <p>Only partially, and only manually. ChatGPT's data export gives you a ZIP of your conversation history, but saved memories aren't included in that file — you copy them by hand from Settings. Claude and Gemini let you view and edit what they remember, but neither offers a one-click export into a competitor's format.</p>
+
+      <h3>Does GDPR guarantee a right to move my AI chat data between providers?</h3>
+      <p>GDPR Article 20 gives EU users a right to receive their personal data in a structured, commonly used, machine-readable format. It requires a vendor to hand over your data — it does not require any AI vendor to read another vendor's memory schema, so the technical translation step is still left to you or a third-party tool.</p>
+
+      <h3>Is open-context affiliated with Anthropic, OpenAI, or Google?</h3>
+      <p>No. open-context is an independent, open source project. It is not built, endorsed, or operated by Anthropic, OpenAI, or Google.</p>
+
+      <h3>How does open-context keep my context portable?</h3>
+      <p>It parses a provider's export into a vendor-neutral schema, then generates Claude-ready preferences and memory files from it. The resulting store can live in a plain JSON file or any of 15 databases you choose, so your context stays under your control instead of locked inside one vendor's account.</p>
+    </article>
+  </main>
+
+  <footer>
+    <span>open-context.dev — open source, self-hosted</span>
+    <div>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://hub.docker.com/r/adityakarnam/opencontext" target="_blank" rel="noopener noreferrer">Docker Hub</a>
+    </div>
+  </footer>
+</body>
+</html>

@@ -41,10 +41,15 @@
       "title": "Migrating From Google Gemini to Claude: What Transfers",
       "publishedAt": "2026-08-19",
       "topicTag": "gemini-to-claude-migration"
+    },
+    {
+      "slug": "ai-context-portability",
+      "title": "AI Context Portability: Why Vendor Lock-In Persists",
+      "publishedAt": "2026-08-21",
+      "topicTag": "ai-context-portability"
     }
   ],
   "backlog": [
-    { "topicTag": "ai-context-portability", "workingTitle": "AI Context Portability: Why Vendor Lock-In Is an Unsolved Problem" },
     { "topicTag": "bubbles-project-workspaces", "workingTitle": "Organizing AI Context by Project with open-context Bubbles" }
   ]
 }
