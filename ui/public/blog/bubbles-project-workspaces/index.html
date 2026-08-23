@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/opencontext-logo.png" />
+  <title>Organize Claude's MCP Memory by Project With Bubbles</title>
+  <meta name="description" content="open-context's Bubbles group MCP memory into project workspaces, so save_context and recall_context stay scoped to the project you're actually working on." />
+  <link rel="canonical" href="https://open-context.dev/blog/bubbles-project-workspaces/" />
+  <meta property="og:title" content="Organize Claude's MCP Memory by Project With Bubbles" />
+  <meta property="og:description" content="open-context's Bubbles group MCP memory into project workspaces, so save_context and recall_context stay scoped to the project you're actually working on." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://open-context.dev/blog/bubbles-project-workspaces/" />
+  <meta property="og:image" content="https://open-context.dev/opencontext-logo.png" />
+  <meta property="article:published_time" content="2026-08-23" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Organize Claude's MCP Memory by Project With Bubbles" />
+  <meta name="twitter:description" content="Group open-context's MCP memory into project workspaces called Bubbles, so Claude recalls only what's relevant to the project you're in." />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BlogPosting",
+        "headline": "Organize Claude's MCP Memory by Project With Bubbles",
+        "description": "open-context's Bubbles group MCP memory into project workspaces, so save_context and recall_context stay scoped to the project you're actually working on.",
+        "datePublished": "2026-08-23",
+        "dateModified": "2026-08-23",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://open-context.dev/blog/bubbles-project-workspaces/" },
+        "image": "https://open-context.dev/opencontext-logo.png",
+        "author": { "@type": "Organization", "name": "open-context", "url": "https://open-context.dev/" },
+        "publisher": {
+          "@type": "Organization",
+          "name": "open-context",
+          "logo": { "@type": "ImageObject", "url": "https://open-context.dev/opencontext-logo.png" }
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is a \"bubble\" in open-context?",
+            "acceptedAnswer": { "@type": "Answer", "text": "A bubble is a named project workspace in open-context's MCP context store. It groups related saved memories together — for example one bubble per client, codebase, or area of your life — so Claude can recall context scoped to a specific project instead of everything you've ever saved." }
+          },
+          {
+            "@type": "Question",
+            "name": "Do I have to create bubbles to use open-context's MCP memory?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. bubbleId is optional on every context entry. save_context and recall_context work exactly as before if you never create a bubble — bubbles are an opt-in way to organize memory once you have enough of it that a flat list gets hard to search." }
+          },
+          {
+            "@type": "Question",
+            "name": "Does deleting a bubble delete my saved contexts?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No, not by default. delete_bubble unassigns the contexts inside it — they remain in your store with bubbleId cleared. Pass deleteContexts: true to delete the bubble's contexts along with it." }
+          },
+          {
+            "@type": "Question",
+            "name": "Can Claude create and manage bubbles on its own?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. The MCP server exposes create_bubble, list_bubbles, get_bubble, update_bubble, and delete_bubble as tools, so Claude Code or Claude Desktop can organize your memory into project workspaces mid-conversation without you touching the web UI." }
+          },
+          {
+            "@type": "Question",
+            "name": "Do bubbles work with every open-context database backend?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. Bubbles are stored alongside context entries in whichever backend you use — the default JSON file or any of the 15 supported databases — and are included when you run opencontext db migrate to move to a different backend." }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  <style>
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Regular-Trial-BF63f6cbd970ee9.otf') format('opentype'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Medium-Trial-BF63f6cbdb24b6d.otf') format('opentype'); font-weight: 500; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Bold-Trial-BF63f6cbda1877f.otf') format('opentype'); font-weight: 700; font-style: normal; }
+
+    :root {
+      --bg: #000000;
+      --card: #0a0a0a;
+      --border: #262626;
+      --fg: #fafafa;
+      --muted: #a1a1aa;
+      --accent: #4ade80;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Styrene A', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.7;
+    }
+    a { color: inherit; }
+    header {
+      position: sticky; top: 0; z-index: 40;
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 0.9rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(6px);
+    }
+    header .brand { display: flex; align-items: center; gap: 0.5rem; margin-right: auto; text-decoration: none; }
+    header .brand img { width: 32px; height: 32px; border-radius: 3px; }
+    header .brand span { font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em; }
+    header nav { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--muted); }
+    header nav a { text-decoration: none; }
+    header nav a:hover, header nav a.active { color: var(--fg); }
+
+    main { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+    .meta { font-size: 0.8rem; color: var(--muted); font-family: monospace; margin-bottom: 0.75rem; }
+    h1 { font-size: 2.1rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; margin: 0 0 1.5rem; }
+    h2 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em; margin: 2.5rem 0 1rem; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 1.75rem 0 0.6rem; }
+    p { color: #e4e4e7; margin: 0 0 1.1rem; }
+    p.lead { font-size: 1.1rem; color: var(--fg); }
+    ul, ol { color: #e4e4e7; padding-left: 1.3rem; margin: 0 0 1.1rem; }
+    li { margin-bottom: 0.4rem; }
+    code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.4rem; font-size: 0.85em; }
+    pre { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; overflow-x: auto; font-size: 0.85rem; }
+    pre code { border: none; padding: 0; background: none; }
+    a.inline-link { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+    .takeaways {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0 2.5rem;
+    }
+    .takeaways p.label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; color: var(--accent); font-weight: 600; margin: 0 0 0.75rem; }
+    .takeaways ul { margin: 0; }
+    .table-wrap { overflow-x: auto; margin: 0 0 1.1rem; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+    th { color: var(--muted); font-weight: 600; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+    .cta {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin: 2.5rem 0;
+      text-align: center;
+    }
+    .cta a {
+      display: inline-block;
+      margin-top: 0.75rem;
+      background: var(--fg);
+      color: #000;
+      font-weight: 600;
+      padding: 0.55rem 1.25rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem; display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 0.75rem;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    footer a { text-decoration: none; margin-left: 1rem; }
+    footer a:hover { color: var(--fg); }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">
+      <img src="/opencontext-logo.png" alt="open-context" />
+      <span>open-context</span>
+    </a>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/blog/" class="active">Blog</a>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <article>
+      <div class="meta">August 23, 2026 · 6 min read</div>
+      <h1>Organize Claude's MCP Memory by Project With Bubbles</h1>
+
+      <p class="lead">
+        A bubble in <a class="inline-link" href="/">open-context</a> is a named project workspace that groups
+        related MCP context entries together — one bubble per client, codebase, or area of your life — so
+        Claude recalls memory scoped to the project you're actually working on instead of searching everything
+        you've ever saved. You create bubbles from the web UI, the REST API, or Claude itself, since bubble
+        management ships as five MCP tools.
+      </p>
+
+      <div class="takeaways">
+        <p class="label">Key takeaways</p>
+        <ul>
+          <li>Bubbles are project workspaces for open-context's MCP context store — a way to group saved memories instead of keeping one flat, growing list.</li>
+          <li>Claude can create and manage bubbles directly with the <code>create_bubble</code>, <code>list_bubbles</code>, <code>get_bubble</code>, <code>update_bubble</code>, and <code>delete_bubble</code> MCP tools, mid-conversation.</li>
+          <li><code>save_context</code> and <code>update_context</code> both accept an optional <code>bubbleId</code>, so a memory can be scoped to a project the moment it's saved.</li>
+          <li>Deleting a bubble unassigns its contexts by default — nothing is lost unless you explicitly pass <code>deleteContexts: true</code>.</li>
+          <li>Bubbles are opt-in and stored in whichever backend you use, from the default JSON file to any of open-context's 15 supported databases, and travel with <code>db migrate</code>.</li>
+        </ul>
+      </div>
+
+      <h2>One memory pool gets messy fast</h2>
+      <p>
+        open-context's <a class="inline-link" href="/blog/mcp-persistent-memory/">MCP server</a> gives Claude
+        a real memory: <code>save_context</code> to store something, <code>recall_context</code> or
+        <code>search_contexts</code> to pull it back up in a future conversation. That works well for the
+        first few dozen entries. Past that, a flat list of memories starts to blur together — a note about a
+        client's API conventions sits next to a reminder about your home network setup, and a keyword search
+        for "config" returns both.
+      </p>
+      <p>
+        Bubbles exist to fix that without changing how saving and recalling context works. Every context entry
+        already carries an optional <code>source</code> and a list of <code>tags</code>; a bubble is a third,
+        higher-level grouping — a project the entry belongs to, not just a keyword attached to it.
+      </p>
+
+      <h2>What a bubble actually is</h2>
+      <p>
+        A bubble is a small record: an <code>id</code>, a <code>name</code>, an optional <code>description</code>,
+        a live <code>contextCount</code>, and timestamps. Each context entry gets an optional
+        <code>bubbleId</code> field linking it to one bubble. Nothing is required — a context entry with no
+        <code>bubbleId</code> behaves exactly as it always did, which is why bubbles are opt-in rather than a
+        breaking change to how the MCP store works.
+      </p>
+
+      <h2>Creating and using bubbles</h2>
+
+      <h3>From the web UI</h3>
+      <p>
+        The dashboard has a dedicated <strong>Bubbles</strong> page at <code>/bubbles</code> in the sidebar
+        nav. Create a bubble with a name and optional description, then assign existing contexts to it or view
+        everything already grouped inside — the same page other tools in the UI, like the Preferences editor
+        and Conversations viewer, are built around.
+      </p>
+
+      <h3>From Claude, via MCP tools</h3>
+      <p>Because bubble management is exposed as MCP tools, Claude can organize your memory on its own, without you opening the UI:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tool</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><code>create_bubble</code></td><td>Create a new project workspace with a name and optional description.</td></tr>
+            <tr><td><code>list_bubbles</code></td><td>List every bubble and how many contexts each one holds.</td></tr>
+            <tr><td><code>get_bubble</code></td><td>Fetch a bubble along with all of its contexts.</td></tr>
+            <tr><td><code>update_bubble</code></td><td>Rename a bubble or change its description.</td></tr>
+            <tr><td><code>delete_bubble</code></td><td>Delete a bubble; unassigns its contexts unless <code>deleteContexts</code> is set.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        <code>save_context</code> and <code>update_context</code> both take an optional <code>bubbleId</code>
+        parameter too, so a memory can be scoped to a project the moment Claude saves it — say "remember this
+        for the Acme project" and, once you've told Claude which bubble is Acme, it can pass that ID straight
+        through.
+      </p>
+
+      <h3>Via the REST API</h3>
+      <p>The same operations are available over HTTP, which is what the web UI itself calls:</p>
+      <pre><code>GET    /api/bubbles              # list bubbles with context counts
+POST   /api/bubbles              # create a bubble
+GET    /api/bubbles/:id          # get a bubble
+GET    /api/bubbles/:id/contexts # list a bubble's contexts
+PUT    /api/bubbles/:id          # rename / re-describe a bubble
+DELETE /api/bubbles/:id          # delete a bubble</code></pre>
+
+      <h2>Bubbles vs. Claude Projects</h2>
+      <p>
+        Anthropic's own <a class="inline-link" href="https://support.claude.com/en/articles/9517075-what-are-projects" target="_blank" rel="noopener noreferrer">Claude Projects</a>
+        feature does something related on claude.ai itself: it groups chat history and uploaded documents into
+        a shared 200K-token context window. Bubbles operate one layer below that, at the MCP memory level, and
+        solve a different problem. Claude Projects organizes conversations and files inside claude.ai; Bubbles
+        organizes the persistent memories Claude saves and recalls across Claude Code, Claude Desktop, and any
+        other MCP client — including ones that have no concept of a "project" at all. The two are complementary:
+        you can still use Claude Projects for document context on claude.ai while your MCP memory, grouped into
+        bubbles, follows you into Claude Code sessions that Projects doesn't reach.
+      </p>
+
+      <h2>Deleting a bubble doesn't delete your memory — unless you ask</h2>
+      <p>
+        Grouping memory by project only feels safe if reorganizing it isn't destructive. <code>delete_bubble</code>
+        defaults to unassigning contexts, not deleting them: the bubble disappears, and every context that
+        pointed at it just has its <code>bubbleId</code> cleared, going back to the flat, ungrouped list. If
+        you genuinely want the contexts gone too — a finished, throwaway project, for example — pass
+        <code>deleteContexts: true</code> and both the bubble and its contents are removed together.
+      </p>
+
+      <div class="cta">
+        <p style="margin:0; color: var(--muted);">Give Claude project-scoped memory in a few minutes.</p>
+        <a href="/">Get started with open-context →</a>
+      </div>
+
+      <h2>FAQ</h2>
+
+      <h3>What is a "bubble" in open-context?</h3>
+      <p>A bubble is a named project workspace in open-context's MCP context store. It groups related saved memories together — for example one bubble per client, codebase, or area of your life — so Claude can recall context scoped to a specific project instead of everything you've ever saved.</p>
+
+      <h3>Do I have to create bubbles to use open-context's MCP memory?</h3>
+      <p>No. <code>bubbleId</code> is optional on every context entry. <code>save_context</code> and <code>recall_context</code> work exactly as before if you never create a bubble — bubbles are an opt-in way to organize memory once you have enough of it that a flat list gets hard to search.</p>
+
+      <h3>Does deleting a bubble delete my saved contexts?</h3>
+      <p>No, not by default. <code>delete_bubble</code> unassigns the contexts inside it — they remain in your store with <code>bubbleId</code> cleared. Pass <code>deleteContexts: true</code> to delete the bubble's contexts along with it.</p>
+
+      <h3>Can Claude create and manage bubbles on its own?</h3>
+      <p>Yes. The MCP server exposes <code>create_bubble</code>, <code>list_bubbles</code>, <code>get_bubble</code>, <code>update_bubble</code>, and <code>delete_bubble</code> as tools, so Claude Code or Claude Desktop can organize your memory into project workspaces mid-conversation without you touching the web UI.</p>
+
+      <h3>Do bubbles work with every open-context database backend?</h3>
+      <p>Yes. Bubbles are stored alongside context entries in whichever backend you use — the default JSON file or any of the 15 supported databases — and are included when you run <code>opencontext db migrate</code> to move to a different backend.</p>
+    </article>
+  </main>
+
+  <footer>
+    <span>open-context.dev — open source, self-hosted</span>
+    <div>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://hub.docker.com/r/adityakarnam/opencontext" target="_blank" rel="noopener noreferrer">Docker Hub</a>
+    </div>
+  </footer>
+</body>
+</html>

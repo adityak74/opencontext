@@ -47,9 +47,19 @@
       "title": "AI Context Portability: Why Vendor Lock-In Persists",
       "publishedAt": "2026-08-21",
       "topicTag": "ai-context-portability"
+    },
+    {
+      "slug": "bubbles-project-workspaces",
+      "title": "Organize Claude's MCP Memory by Project With Bubbles",
+      "publishedAt": "2026-08-23",
+      "topicTag": "bubbles-project-workspaces"
     }
   ],
   "backlog": [
-    { "topicTag": "bubbles-project-workspaces", "workingTitle": "Organizing AI Context by Project with open-context Bubbles" }
+    { "topicTag": "self-hosted-vs-cloud-ai-memory", "workingTitle": "Self-Hosted vs. Cloud AI Memory: Where Should Your Context Live?" },
+    { "topicTag": "mcp-server-security", "workingTitle": "Securing a Local MCP Server: What Actually Needs Protecting" },
+    { "topicTag": "sqlite-vs-postgres-mcp-store", "workingTitle": "SQLite or Postgres for Your MCP Context Store? A Practical Comparison" },
+    { "topicTag": "claude-code-persistent-context", "workingTitle": "Giving Claude Code Persistent Project Memory With MCP" },
+    { "topicTag": "chatgpt-projects-vs-bubbles", "workingTitle": "ChatGPT Projects vs. open-context Bubbles: Same Idea, Different Layer" }
   ]
 }
