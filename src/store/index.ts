@@ -177,4 +177,6 @@ export async function createStore(url: string): Promise<ContextStoreAdapter> {
 }
 
 export { parseDsn, redactDsn } from './dsn.js';
+export { createContextStoreFromDsn, ContextStoreRegistry, createStoreManager, type StoreManager } from './manager.js';
 export * from './types.js';
+

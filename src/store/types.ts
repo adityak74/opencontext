@@ -1,6 +1,8 @@
 import type { ContextEntry, Bubble } from '../mcp/types.js';
 
 export type { ContextEntry, Bubble };
+export type { ContextStore, ContextStoreCapabilities, ContextQuery, ContextBatchMutation } from '@opencontext/provider-sdk';
+
 
 /** Every connection-string scheme opencontext knows how to open. */
 export type DbScheme =

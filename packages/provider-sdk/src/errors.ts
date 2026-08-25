@@ -18,3 +18,11 @@ export class ConcurrencyConflictError extends Error {
     this.name = 'ConcurrencyConflictError';
   }
 }
+
+export class UnsupportedSchemeError extends Error {
+  constructor(public readonly scheme: string) {
+    super(`Unsupported storage scheme: '${scheme}'`);
+    this.name = 'UnsupportedSchemeError';
+  }
+}
+
