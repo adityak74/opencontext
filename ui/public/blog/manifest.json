@@ -1,6 +1,12 @@
 {
   "posts": [
     {
+      "slug": "self-hosted-vs-cloud-ai-memory",
+      "title": "Self-Hosted vs. Cloud AI Memory: Where Should Yours Live",
+      "publishedAt": "2026-08-25",
+      "topicTag": "self-hosted-vs-cloud-ai-memory"
+    },
+    {
       "slug": "migrate-chatgpt-to-claude",
       "title": "How to Migrate Your ChatGPT History to Claude (Free & Local)",
       "publishedAt": "2026-08-08",
@@ -56,7 +62,6 @@
     }
   ],
   "backlog": [
-    { "topicTag": "self-hosted-vs-cloud-ai-memory", "workingTitle": "Self-Hosted vs. Cloud AI Memory: Where Should Your Context Live?" },
     { "topicTag": "mcp-server-security", "workingTitle": "Securing a Local MCP Server: What Actually Needs Protecting" },
     { "topicTag": "sqlite-vs-postgres-mcp-store", "workingTitle": "SQLite or Postgres for Your MCP Context Store? A Practical Comparison" },
     { "topicTag": "claude-code-persistent-context", "workingTitle": "Giving Claude Code Persistent Project Memory With MCP" },
