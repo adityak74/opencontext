@@ -963,29 +963,9 @@ npm start -- convert export.zip --skip-preferences
 
 ## 🗺️ Roadmap
 
-### Planned Features
+Open Context is evolving into an open, storage-agnostic, distributed context data plane for AI agents (Open Context 2.0).
 
-- [ ] Google Gemini export support
-- [ ] Perplexity export support
-- [ ] Claude Projects API integration (when available)
-- [ ] Conversation search and filtering
-- [ ] Better image handling (Base64 embedding)
-- [ ] Multi-language support
-- [x] Web UI dashboard with privacy toggle
-- [x] MCP server for persistent context
-- [x] Export to Claude, ChatGPT, and Gemini formats
-- [x] Automated tests
-- [x] Docker support (Web UI + MCP server)
-- [x] Bring your own database — 15 pluggable backends
-
-### Future Possibilities
-
-- Direct Claude API integration
-- Conversation merging/combining
-- Custom prompt templates
-- Browser extension
-
-**Vote on features:** [Discussions](https://github.com/adityak74/opencontext/discussions)
+👉 **[View the Complete Strategic Roadmap (v2.0-alpha → v2.2+)](ROADMAP.md)**
 
 ---
 
@@ -1094,6 +1074,6 @@ copies of the Software...
 
 *Save your context, your way — portable AI history across every platform*
 
-[Report Bug](https://github.com/adityak74/opencontext/issues) • [Request Feature](https://github.com/adityak74/opencontext/discussions) • [View Roadmap](https://github.com/adityak74/opencontext/projects)
+[Report Bug](https://github.com/adityak74/opencontext/issues) • [Request Feature](https://github.com/adityak74/opencontext/discussions) • [View Roadmap](ROADMAP.md)
 
 </div>
