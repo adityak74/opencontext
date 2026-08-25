@@ -12,7 +12,7 @@
     "opencontext-mcp": "./dist/mcp/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "npm --workspaces --if-present run build && tsc",
     "start": "tsx src/index.ts",
     "dev": "tsx watch src/index.ts",
     "server": "tsx src/server.ts",

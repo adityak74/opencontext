@@ -19,6 +19,7 @@ export class SqliteDialect implements SqlDialect {
         relationships_json TEXT NOT NULL,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
+        expires_at TEXT,
         revision INTEGER NOT NULL,
         lifecycle TEXT NOT NULL
       );
@@ -45,6 +46,7 @@ export class PostgresDialect implements SqlDialect {
         relationships_json JSONB NOT NULL,
         created_at TIMESTAMPTZ NOT NULL,
         updated_at TIMESTAMPTZ NOT NULL,
+        expires_at TIMESTAMPTZ,
         revision BIGINT NOT NULL,
         lifecycle VARCHAR(32) NOT NULL
       );

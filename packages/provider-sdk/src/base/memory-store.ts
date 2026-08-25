@@ -55,8 +55,8 @@ export class MemoryContextStore implements ContextStore {
       const terms = q.fullText.toLowerCase().trim().split(/\s+/).filter(Boolean);
       items = items.filter((c) => {
         const text = (c.content.text ?? JSON.stringify(c.content.structured ?? {})).toLowerCase();
-        const tags = Array.isArray(c.metadata?.tags) ? (c.metadata.tags as string[]).join(' ').toLowerCase() : '';
-        const combined = `${text} ${tags}`;
+        const meta = JSON.stringify(c.metadata ?? {}).toLowerCase();
+        const combined = `${text} ${meta}`;
         return terms.every((term) => combined.includes(term));
       });
     }

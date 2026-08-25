@@ -1,4 +1,4 @@
-import { CanonicalContext, ContextType, ScopeId, NamespaceId } from './types.js';
+import { CanonicalContext, ContextType, ScopeId, NamespaceId, LifecycleState } from './types.js';
 import { generateUlid } from '../identity/ulid.js';
 import { computeContentHash } from '../identity/hash.js';
 
@@ -7,6 +7,7 @@ export interface CreateContextOptions {
   namespace?: NamespaceId;
   scope?: ScopeId;
   type?: ContextType;
+  lifecycle?: LifecycleState;
   content: {
     text?: string;
     structured?: Record<string, unknown>;
@@ -47,6 +48,6 @@ export function createCanonicalContext(opts: CreateContextOptions): CanonicalCon
     version: {
       revision: 1,
     },
-    lifecycle: 'active',
+    lifecycle: opts.lifecycle ?? 'active',
   };
 }

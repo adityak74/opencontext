@@ -59,6 +59,7 @@ export class SqlContextStore implements ContextStore {
       timestamps: {
         createdAt: typeof row.created_at === 'string' ? row.created_at : new Date(row.created_at).toISOString(),
         updatedAt: typeof row.updated_at === 'string' ? row.updated_at : new Date(row.updated_at).toISOString(),
+        ...(row.expires_at ? { expiresAt: typeof row.expires_at === 'string' ? row.expires_at : new Date(row.expires_at).toISOString() } : {}),
       },
       version: {
         revision: Number(row.revision),
@@ -70,8 +71,8 @@ export class SqlContextStore implements ContextStore {
   async put(ctx: CanonicalContext): Promise<CanonicalContext> {
     const p = (i: number) => this.dialect.placeholder(i);
     const sql = `
-      INSERT INTO contexts (id, namespace, scope, type, content_json, metadata_json, provenance_json, relationships_json, created_at, updated_at, revision, lifecycle)
-      VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)}, ${p(8)}, ${p(9)}, ${p(10)}, ${p(11)}, ${p(12)})
+      INSERT INTO contexts (id, namespace, scope, type, content_json, metadata_json, provenance_json, relationships_json, created_at, updated_at, expires_at, revision, lifecycle)
+      VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)}, ${p(8)}, ${p(9)}, ${p(10)}, ${p(11)}, ${p(12)}, ${p(13)})
     `;
     const params = [
       ctx.id,
@@ -84,6 +85,7 @@ export class SqlContextStore implements ContextStore {
       JSON.stringify(ctx.relationships ?? []),
       typeof ctx.timestamps.createdAt === 'string' ? ctx.timestamps.createdAt : new Date(ctx.timestamps.createdAt).toISOString(),
       typeof ctx.timestamps.updatedAt === 'string' ? ctx.timestamps.updatedAt : new Date(ctx.timestamps.updatedAt).toISOString(),
+      ctx.timestamps.expiresAt ? (typeof ctx.timestamps.expiresAt === 'string' ? ctx.timestamps.expiresAt : new Date(ctx.timestamps.expiresAt).toISOString()) : null,
       ctx.version.revision,
       ctx.lifecycle,
     ];
@@ -133,8 +135,10 @@ export class SqlContextStore implements ContextStore {
     if (q.fullText) {
       const terms = q.fullText.trim().split(/\s+/).filter(Boolean);
       for (const term of terms) {
-        conditions.push(`content_json LIKE ${this.dialect.placeholder(idx++)}`);
-        params.push(`%${term}%`);
+        const p1 = this.dialect.placeholder(idx++);
+        const p2 = this.dialect.placeholder(idx++);
+        conditions.push(`(content_json LIKE ${p1} OR metadata_json LIKE ${p2})`);
+        params.push(`%${term}%`, `%${term}%`);
       }
     }
 
@@ -195,8 +199,8 @@ export class SqlContextStore implements ContextStore {
     const sql = `
       UPDATE contexts
       SET content_json = ${p(1)}, metadata_json = ${p(2)}, provenance_json = ${p(3)}, relationships_json = ${p(4)},
-          updated_at = ${p(5)}, revision = ${p(6)}, lifecycle = ${p(7)}, scope = ${p(8)}, type = ${p(9)}
-      WHERE id = ${p(10)} AND namespace = ${p(11)} AND revision = ${p(12)}
+          updated_at = ${p(5)}, expires_at = ${p(6)}, revision = ${p(7)}, lifecycle = ${p(8)}, scope = ${p(9)}, type = ${p(10)}
+      WHERE id = ${p(11)} AND namespace = ${p(12)} AND revision = ${p(13)}
     `;
 
     const res = await this.driver.exec(sql, [
@@ -205,6 +209,7 @@ export class SqlContextStore implements ContextStore {
       JSON.stringify(updatedCtx.provenance ?? {}),
       JSON.stringify(updatedCtx.relationships ?? []),
       updatedCtx.timestamps.updatedAt,
+      updatedCtx.timestamps.expiresAt ? (typeof updatedCtx.timestamps.expiresAt === 'string' ? updatedCtx.timestamps.expiresAt : new Date(updatedCtx.timestamps.expiresAt).toISOString()) : null,
       newRev,
       updatedCtx.lifecycle,
       updatedCtx.scope,

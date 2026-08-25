@@ -17,7 +17,7 @@ export function createMcpServer(databaseUrlOrStore?: StoreOrDsn) {
   let v2Store: ContextStore | undefined;
   let v1Store: ContextStoreV1Shim | ContextStoreAdapter | undefined;
 
-  const getStore = async (): Promise<{ v2: ContextStore; v1: ContextStoreV1Shim | ContextStoreAdapter }> => {
+  const getStore = async (): Promise<{ v2?: ContextStore; v1: ContextStoreV1Shim | ContextStoreAdapter }> => {
     if (v2Store && v1Store) {
       return { v2: v2Store, v1: v1Store };
     }
@@ -29,7 +29,7 @@ export function createMcpServer(databaseUrlOrStore?: StoreOrDsn) {
         return { v2: v2Store, v1: v1Store };
       }
       v1Store = databaseUrlOrStore as ContextStoreAdapter;
-      return { v2: v2Store!, v1: v1Store };
+      return { v2: undefined, v1: v1Store };
     }
 
     const dsn = typeof databaseUrlOrStore === 'string'
@@ -419,9 +419,25 @@ export function createMcpServer(databaseUrlOrStore?: StoreOrDsn) {
     {
       content: z.union([z.string(), z.record(z.string(), z.any())]).describe('The content to save (text string or structured JSON object)'),
       type: z
-        .enum(['fact', 'decision', 'preference', 'instruction', 'summary', 'checkpoint', 'insight', 'pattern'])
+        .enum([
+          'message',
+          'fact',
+          'decision',
+          'constraint',
+          'preference',
+          'instruction',
+          'artifact',
+          'observation',
+          'tool_result',
+          'summary',
+          'checkpoint',
+          'insight',
+          'pattern',
+        ])
         .optional()
-        .describe('Type of context (fact, decision, preference, instruction, summary, checkpoint, insight, pattern)'),
+        .describe(
+          'Type of context (message, fact, decision, constraint, preference, instruction, artifact, observation, tool_result, summary, checkpoint, insight, pattern)',
+        ),
       scope: z.string().optional().describe('Scope identifier (e.g. "global", "project:v2", "bubble:123")'),
       namespace: z.string().optional().describe('Namespace identifier (default: "default")'),
       metadata: z.record(z.string(), z.any()).optional().describe('Arbitrary metadata attributes'),
@@ -442,6 +458,9 @@ export function createMcpServer(databaseUrlOrStore?: StoreOrDsn) {
     },
     async (args) => {
       const { v2 } = await getStore();
+      if (!v2) {
+        throw new Error('Underlying store does not support canonical v2 context operations (legacy adapter in use).');
+      }
       const contentObj =
         typeof args.content === 'string'
           ? { text: args.content, mediaType: 'text/plain' }
@@ -491,6 +510,9 @@ export function createMcpServer(databaseUrlOrStore?: StoreOrDsn) {
     },
     async (args) => {
       const { v2 } = await getStore();
+      if (!v2) {
+        throw new Error('Underlying store does not support canonical v2 context operations (legacy adapter in use).');
+      }
       const results = await v2.query({
         namespace: args.namespace || 'default',
         scope: args.scope,

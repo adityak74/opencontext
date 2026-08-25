@@ -269,12 +269,19 @@ describe('MCP Server', () => {
 
 describe('MCP Server v2 Tools', () => {
   let server: any;
+  let client: Client;
   let rawStore: MemoryContextStore;
 
   beforeEach(async () => {
     rawStore = new MemoryContextStore();
     await rawStore.connect();
-    server = await createServer(rawStore as any);
+    server = createServer(rawStore as any);
+    client = new Client({ name: 'v2-test-client', version: '1.0.0' });
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    await Promise.all([
+      client.connect(clientTransport),
+      server.connect(serverTransport),
+    ]);
   });
 
   it('preserves legacy save_context and recall_context tool execution', async () => {
@@ -304,4 +311,74 @@ describe('MCP Server v2 Tools', () => {
     });
     expect(queryRes.content[0].text).toContain('Decision to use OCM 2.0');
   });
+
+  it('supports all standard context types in save_canonical_context', async () => {
+    const standardTypes = [
+      'message',
+      'fact',
+      'decision',
+      'constraint',
+      'preference',
+      'instruction',
+      'artifact',
+      'observation',
+      'tool_result',
+      'summary',
+      'checkpoint',
+      'insight',
+      'pattern',
+    ] as const;
+
+    for (const type of standardTypes) {
+      const res = await client.callTool({
+        name: 'save_canonical_context',
+        arguments: {
+          content: `Content for ${type}`,
+          type,
+          scope: 'project:types',
+        },
+      });
+      const text = (res.content as Array<{ type: string; text: string }>)[0].text;
+      expect(text).toContain(`Type: ${type}`);
+    }
+  });
+
+  it('throws a clean error when v2 canonical tools are called with a legacy adapter', async () => {
+    const mockLegacyAdapter = {
+      saveContext: async () => ({ id: '1', content: 'legacy', tags: [], source: 'test', createdAt: '', updatedAt: '' }),
+      recallContext: async () => [],
+      listContexts: async () => [],
+      deleteContext: async () => true,
+      searchContexts: async () => [],
+      updateContext: async () => null,
+      createBubble: async () => ({ id: 'b1', name: 'bubble', createdAt: '', updatedAt: '' }),
+      listBubbles: async () => [],
+      getBubble: async () => null,
+      updateBubble: async () => null,
+      deleteBubble: async () => true,
+      listContextsByBubble: async () => [],
+      close: async () => {},
+    };
+
+    const legacyServer: any = createMcpServer(mockLegacyAdapter as any);
+
+    // Legacy tool should work
+    const legRes = await legacyServer.handleToolCall('save_context', { content: 'legacy works' });
+    expect(legRes.content[0].text).toContain('Saved context with ID: 1');
+
+    // Canonical tools should throw a clean error
+    await expect(
+      legacyServer.handleToolCall('save_canonical_context', {
+        content: 'Should fail',
+        type: 'decision',
+      })
+    ).rejects.toThrow(/legacy adapter in use|not supported/i);
+
+    await expect(
+      legacyServer.handleToolCall('query_canonical_context', {
+        namespace: 'default',
+      })
+    ).rejects.toThrow(/legacy adapter in use|not supported/i);
+  });
 });
+

@@ -99,7 +99,41 @@ describe('SQL Dialects', () => {
     expect(complexQuery.sql).toContain('scope IN ($2, $3)');
     expect(complexQuery.sql).toContain('type IN ($4)');
     expect(complexQuery.sql).toContain('lifecycle IN ($5)');
-    expect(complexQuery.sql).toContain('content_json');
-    expect(complexQuery.params).toEqual(['ns-1', 'scope-a', 'scope-b', 'decision', 'active', '%test%']);
+    expect(complexQuery.sql).toContain('(content_json LIKE $6 OR metadata_json LIKE $7)');
+    expect(complexQuery.params).toEqual(['ns-1', 'scope-a', 'scope-b', 'decision', 'active', '%test%', '%test%']);
+  });
+
+  it('searches across both content_json and metadata_json with fullText', async () => {
+    const { createCanonicalContext } = await import('@opencontext/core');
+    const memDb = new DatabaseSync(':memory:');
+    const driver = {
+      query: async (sql: string, params: any[] = []) => {
+        const stmt = memDb.prepare(sql);
+        return stmt.all(...params);
+      },
+      exec: async (sql: string, params: any[] = []) => {
+        const stmt = memDb.prepare(sql);
+        const res = stmt.run(...params);
+        return { changes: Number(res.changes) };
+      },
+      close: async () => {
+        try {
+          memDb.close();
+        } catch {}
+      },
+    };
+    const store = new SqlContextStore('sqlite-test', new SqliteDialect(), driver);
+    await store.connect();
+
+    const c1 = createCanonicalContext({
+      content: { text: 'General notes' },
+      metadata: { tags: ['critical-architecture', 'backend'] },
+    });
+    await store.put(c1);
+
+    const res = await store.query({ namespace: 'default', fullText: 'critical-architecture' });
+    expect(res.items.length).toBe(1);
+    expect(res.items[0].id).toBe(c1.id);
   });
 });
+
