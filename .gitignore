@@ -15,3 +15,5 @@ claude-export/
 !ui/public/opencontext-logo.png
 !ui/public/dark-logo-aviskaar.png
 0532b8293bb107be5c0c20f3e2980f09107f44de9a58414157f5bed3f7ef0d19*/
+
+.worktrees/
