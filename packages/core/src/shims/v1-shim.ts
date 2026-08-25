@@ -126,6 +126,10 @@ export class ContextStoreV1Shim {
     return result.items.filter((i) => !i.metadata?.isBubble).map((i) => this.toV1Entry(i));
   }
 
+  async recallContext(query: string): Promise<ContextEntry[]> {
+    return this.searchContexts(query);
+  }
+
   async createBubble(name: string, description?: string): Promise<Bubble> {
     const canonical = createCanonicalContext({
       type: 'checkpoint',
@@ -145,6 +149,55 @@ export class ContextStoreV1Shim {
       pagination: { limit: 1000 },
     });
     return result.items.filter((i) => i.metadata?.isBubble).map((i) => this.toBubble(i));
+  }
+
+  async getBubble(id: string): Promise<Bubble | undefined> {
+    const item = await this.store.get(id, 'default');
+    if (!item || item.type !== 'checkpoint' || !item.metadata?.isBubble) return undefined;
+    return this.toBubble(item);
+  }
+
+  async updateBubble(id: string, name: string, description?: string): Promise<Bubble | undefined> {
+    const existing = await this.store.get(id, 'default');
+    if (!existing || existing.type !== 'checkpoint' || !existing.metadata?.isBubble) return undefined;
+    const patch: Partial<CanonicalContext> = {
+      content: { ...existing.content, text: name },
+      metadata: {
+        ...existing.metadata,
+        name,
+        ...(description !== undefined ? { description } : {}),
+      },
+      timestamps: { ...existing.timestamps, updatedAt: new Date().toISOString() },
+    };
+    const updated = await this.store.update(id, 'default', existing.version.revision, patch);
+    return this.toBubble(updated);
+  }
+
+  async deleteBubble(id: string, deleteContexts = false): Promise<boolean> {
+    const existing = await this.store.get(id, 'default');
+    if (!existing || existing.type !== 'checkpoint' || !existing.metadata?.isBubble) return false;
+    if (deleteContexts) {
+      const contexts = await this.listContextsByBubble(id);
+      for (const ctx of contexts) {
+        await this.deleteContext(ctx.id);
+      }
+    } else {
+      const result = await this.store.query({
+        namespace: 'default',
+        scope: `bubble:${id}`,
+        lifecycle: ['active'],
+        pagination: { limit: 10000 },
+      });
+      for (const item of result.items) {
+        const patch: Partial<CanonicalContext> = {
+          scope: 'global',
+          relationships: item.relationships.filter((r) => r.relation !== 'child_of'),
+          timestamps: { ...item.timestamps, updatedAt: new Date().toISOString() },
+        };
+        await this.store.update(item.id, 'default', item.version.revision, patch);
+      }
+    }
+    return this.store.delete(id, 'default', true);
   }
 
   toV1Entry(ctx: CanonicalContext): ContextEntry {

@@ -52,8 +52,13 @@ export class MemoryContextStore implements ContextStore {
       items = items.filter((c) => q.lifecycle!.includes(c.lifecycle));
     }
     if (q.fullText) {
-      const term = q.fullText.toLowerCase();
-      items = items.filter((c) => c.content.text?.toLowerCase().includes(term));
+      const terms = q.fullText.toLowerCase().trim().split(/\s+/).filter(Boolean);
+      items = items.filter((c) => {
+        const text = (c.content.text ?? JSON.stringify(c.content.structured ?? {})).toLowerCase();
+        const tags = Array.isArray(c.metadata?.tags) ? (c.metadata.tags as string[]).join(' ').toLowerCase() : '';
+        const combined = `${text} ${tags}`;
+        return terms.every((term) => combined.includes(term));
+      });
     }
 
     const order = q.pagination?.order ?? 'asc';

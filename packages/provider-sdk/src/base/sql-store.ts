@@ -131,8 +131,11 @@ export class SqlContextStore implements ContextStore {
     }
 
     if (q.fullText) {
-      conditions.push(`content_json LIKE ${this.dialect.placeholder(idx++)}`);
-      params.push(`%${q.fullText}%`);
+      const terms = q.fullText.trim().split(/\s+/).filter(Boolean);
+      for (const term of terms) {
+        conditions.push(`content_json LIKE ${this.dialect.placeholder(idx++)}`);
+        params.push(`%${term}%`);
+      }
     }
 
     const orderCol = q.pagination?.orderBy === 'revision'

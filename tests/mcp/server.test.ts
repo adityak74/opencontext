@@ -5,7 +5,8 @@ import { tmpdir } from 'os';
 import { randomUUID } from 'crypto';
 import { Client } from '@modelcontextprotocol/sdk/client';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
-import { createMcpServer } from '../../src/mcp/server.js';
+import { createMcpServer, createServer } from '../../src/mcp/server.js';
+import { MemoryContextStore } from '@opencontext/provider-sdk';
 
 function createTempStorePath(): string {
   const dir = join(tmpdir(), `opencontext-mcp-test-${randomUUID()}`);
@@ -51,7 +52,9 @@ describe('MCP Server', () => {
     expect(toolNames).toContain('get_bubble');
     expect(toolNames).toContain('update_bubble');
     expect(toolNames).toContain('delete_bubble');
-    expect(tools.tools).toHaveLength(11);
+    expect(toolNames).toContain('save_canonical_context');
+    expect(toolNames).toContain('query_canonical_context');
+    expect(tools.tools).toHaveLength(13);
   });
 
   describe('save_context tool', () => {
@@ -176,7 +179,7 @@ describe('MCP Server', () => {
       });
 
       const saveText = (saveResult.content as Array<{ type: string; text: string }>)[0].text;
-      const idMatch = saveText.match(/ID: ([a-f0-9-]+)/);
+      const idMatch = saveText.match(/ID: (\S+)/);
       const id = idMatch![1];
 
       const deleteResult = await client.callTool({
@@ -239,7 +242,7 @@ describe('MCP Server', () => {
       });
 
       const saveText = (saveResult.content as Array<{ type: string; text: string }>)[0].text;
-      const idMatch = saveText.match(/ID: ([a-f0-9-]+)/);
+      const idMatch = saveText.match(/ID: (\S+)/);
       const id = idMatch![1];
 
       const updateResult = await client.callTool({
@@ -261,5 +264,44 @@ describe('MCP Server', () => {
       const text = (result.content as Array<{ type: string; text: string }>)[0].text;
       expect(text).toContain('No context found');
     });
+  });
+});
+
+describe('MCP Server v2 Tools', () => {
+  let server: any;
+  let rawStore: MemoryContextStore;
+
+  beforeEach(async () => {
+    rawStore = new MemoryContextStore();
+    await rawStore.connect();
+    server = await createServer(rawStore as any);
+  });
+
+  it('preserves legacy save_context and recall_context tool execution', async () => {
+    const saveRes = await server.handleToolCall('save_context', {
+      content: 'Legacy tool test',
+      tags: ['test'],
+    });
+    expect(saveRes.content[0].text).toContain('Saved context with ID:');
+
+    const recallRes = await server.handleToolCall('recall_context', {
+      query: 'Legacy tool',
+    });
+    expect(recallRes.content[0].text).toContain('Legacy tool test');
+  });
+
+  it('executes new save_canonical_context tool', async () => {
+    const saveRes = await server.handleToolCall('save_canonical_context', {
+      content: 'Decision to use OCM 2.0',
+      type: 'decision',
+      scope: 'project:v2',
+    });
+    expect(saveRes.content[0].text).toContain('Canonical context saved');
+
+    const queryRes = await server.handleToolCall('query_canonical_context', {
+      scope: 'project:v2',
+      types: ['decision'],
+    });
+    expect(queryRes.content[0].text).toContain('Decision to use OCM 2.0');
   });
 });

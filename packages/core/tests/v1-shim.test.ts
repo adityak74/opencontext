@@ -481,6 +481,97 @@ describe('ContextStoreV1Shim', () => {
       expect(bubbles[0].id).toBe('b-1');
       expect(bubbles[0].name).toBe('Bubble 1');
     });
+
+    it('recallContext delegates to searchContexts', async () => {
+      const item1 = createMockContext({ id: '1', content: { text: 'Recall match' } });
+      const mockStore = {
+        put: vi.fn(),
+        query: vi.fn().mockResolvedValue({ items: [item1] }),
+        get: vi.fn(),
+        update: vi.fn(),
+        delete: vi.fn(),
+      };
+
+      const shim = new ContextStoreV1Shim(mockStore as any);
+      const results = await shim.recallContext('match');
+      expect(results).toHaveLength(1);
+      expect(results[0].content).toBe('Recall match');
+    });
+
+    it('getBubble retrieves bubble checkpoint context', async () => {
+      const bubble1 = createMockContext({
+        id: 'b-1',
+        type: 'checkpoint',
+        metadata: { name: 'Bubble 1', description: 'Desc 1', isBubble: true },
+      });
+      const mockStore = {
+        put: vi.fn(),
+        query: vi.fn(),
+        get: vi.fn().mockResolvedValue(bubble1),
+        update: vi.fn(),
+        delete: vi.fn(),
+      };
+
+      const shim = new ContextStoreV1Shim(mockStore as any);
+      const bubble = await shim.getBubble('b-1');
+      expect(bubble).toBeDefined();
+      expect(bubble!.name).toBe('Bubble 1');
+      expect(bubble!.description).toBe('Desc 1');
+    });
+
+    it('updateBubble updates bubble checkpoint name and description', async () => {
+      const bubble1 = createMockContext({
+        id: 'b-1',
+        type: 'checkpoint',
+        metadata: { name: 'Old Name', description: 'Old Desc', isBubble: true },
+        version: { revision: 1 },
+      });
+      const mockStore = {
+        put: vi.fn(),
+        query: vi.fn(),
+        get: vi.fn().mockResolvedValue(bubble1),
+        update: vi.fn().mockResolvedValue({
+          ...bubble1,
+          content: { text: 'New Name' },
+          metadata: { name: 'New Name', description: 'New Desc', isBubble: true },
+          version: { revision: 2 },
+        }),
+        delete: vi.fn(),
+      };
+
+      const shim = new ContextStoreV1Shim(mockStore as any);
+      const updated = await shim.updateBubble('b-1', 'New Name', 'New Desc');
+      expect(updated).toBeDefined();
+      expect(updated!.name).toBe('New Name');
+      expect(updated!.description).toBe('New Desc');
+    });
+
+    it('deleteBubble deletes bubble checkpoint and unassigns or deletes child contexts', async () => {
+      const bubble1 = createMockContext({
+        id: 'b-1',
+        type: 'checkpoint',
+        metadata: { name: 'Bubble 1', isBubble: true },
+      });
+      const child1 = createMockContext({
+        id: 'c-1',
+        scope: 'bubble:b-1',
+        relationships: [{ targetId: 'b-1', relation: 'child_of' }],
+        version: { revision: 1 },
+      });
+      const mockStore = {
+        put: vi.fn(),
+        query: vi.fn().mockResolvedValue({ items: [child1] }),
+        get: vi.fn().mockResolvedValue(bubble1),
+        update: vi.fn().mockResolvedValue(child1),
+        delete: vi.fn().mockResolvedValue(true),
+      };
+
+      const shim = new ContextStoreV1Shim(mockStore as any);
+      const res = await shim.deleteBubble('b-1', false);
+      expect(res).toBe(true);
+      expect(mockStore.update).toHaveBeenCalled();
+      expect(mockStore.delete).toHaveBeenCalledWith('b-1', 'default', true);
+    });
   });
 
   describe('toV1Entry and toBubble transformations', () => {
