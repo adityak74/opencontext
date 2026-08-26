@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Settings, MessageSquare, GitBranch, Download, LogOut, Brain, Layers, MessageCircle, Database } from 'lucide-react';
+import { LayoutDashboard, Settings, MessageSquare, GitBranch, Download, LogOut, Brain, Layers, MessageCircle, Database, Map } from 'lucide-react';
 import { useAuth } from '../store/auth';
 import { Button } from '@/components/ui/button';
 
@@ -13,6 +13,7 @@ const navItems = [
   { to: '/bubbles', icon: Layers, label: 'Bubbles' },
   { to: '/chat', icon: MessageCircle, label: 'Start Chat' },
   { to: '/database', icon: Database, label: 'Database' },
+  { to: '/roadmap', icon: Map, label: 'Roadmap' },
 ];
 
 export default function Layout() {
