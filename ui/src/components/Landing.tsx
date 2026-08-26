@@ -137,6 +137,7 @@ export default function Landing() {
           <a href="#databases" className="hover:text-foreground transition-colors">Databases</a>
           <a href="#how-it-works" className="hover:text-foreground transition-colors">How it works</a>
           <a href="#deploy" className="hover:text-foreground transition-colors">Deploy</a>
+          <a href="/roadmap" className="hover:text-foreground transition-colors">Roadmap</a>
           <a href="/blog/" className="hover:text-foreground transition-colors">Blog</a>
           <a
             href={GITHUB_URL}
@@ -439,6 +440,9 @@ export default function Landing() {
           </span>
         </div>
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
+          <a href="/roadmap" className="hover:text-foreground transition-colors">
+            Roadmap
+          </a>
           <a href="/blog/" className="hover:text-foreground transition-colors">
             Blog
           </a>
