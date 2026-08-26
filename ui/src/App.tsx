@@ -12,6 +12,7 @@ import ContextsManager from './components/ContextsManager';
 import BubblesManager from './components/BubblesManager';
 import ChatWithContext from './components/ChatWithContext';
 import DatabaseSettings from './components/DatabaseSettings';
+import RoadmapPage from './components/RoadmapPage';
 import './App.css';
 
 export default function App() {
@@ -32,6 +33,7 @@ export default function App() {
               <Route path="/bubbles" element={<BubblesManager />} />
               <Route path="/chat" element={<ChatWithContext />} />
               <Route path="/database" element={<DatabaseSettings />} />
+              <Route path="/roadmap" element={<RoadmapPage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
