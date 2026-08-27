@@ -1,6 +1,12 @@
 {
   "posts": [
     {
+      "slug": "mcp-server-security",
+      "title": "Securing a Local MCP Server: What Actually Needs Protecting",
+      "publishedAt": "2026-08-27",
+      "topicTag": "mcp-server-security"
+    },
+    {
       "slug": "self-hosted-vs-cloud-ai-memory",
       "title": "Self-Hosted vs. Cloud AI Memory: Where Should Yours Live",
       "publishedAt": "2026-08-25",
@@ -62,7 +68,6 @@
     }
   ],
   "backlog": [
-    { "topicTag": "mcp-server-security", "workingTitle": "Securing a Local MCP Server: What Actually Needs Protecting" },
     { "topicTag": "sqlite-vs-postgres-mcp-store", "workingTitle": "SQLite or Postgres for Your MCP Context Store? A Practical Comparison" },
     { "topicTag": "claude-code-persistent-context", "workingTitle": "Giving Claude Code Persistent Project Memory With MCP" },
     { "topicTag": "chatgpt-projects-vs-bubbles", "workingTitle": "ChatGPT Projects vs. open-context Bubbles: Same Idea, Different Layer" }

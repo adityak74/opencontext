@@ -11,6 +11,12 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://open-context.dev/blog/mcp-server-security/</loc>
+    <lastmod>2026-08-27</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://open-context.dev/blog/self-hosted-vs-cloud-ai-memory/</loc>
     <lastmod>2026-08-25</lastmod>
     <changefreq>monthly</changefreq>
