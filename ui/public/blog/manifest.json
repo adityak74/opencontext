@@ -1,6 +1,12 @@
 {
   "posts": [
     {
+      "slug": "sqlite-vs-postgres-mcp-store",
+      "title": "SQLite or Postgres: Choosing Your MCP Context Store",
+      "publishedAt": "2026-08-29",
+      "topicTag": "sqlite-vs-postgres-mcp-store"
+    },
+    {
       "slug": "mcp-server-security",
       "title": "Securing a Local MCP Server: What Actually Needs Protecting",
       "publishedAt": "2026-08-27",
@@ -68,7 +74,6 @@
     }
   ],
   "backlog": [
-    { "topicTag": "sqlite-vs-postgres-mcp-store", "workingTitle": "SQLite or Postgres for Your MCP Context Store? A Practical Comparison" },
     { "topicTag": "claude-code-persistent-context", "workingTitle": "Giving Claude Code Persistent Project Memory With MCP" },
     { "topicTag": "chatgpt-projects-vs-bubbles", "workingTitle": "ChatGPT Projects vs. open-context Bubbles: Same Idea, Different Layer" }
   ]
