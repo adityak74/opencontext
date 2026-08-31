@@ -1,6 +1,12 @@
 {
   "posts": [
     {
+      "slug": "claude-code-persistent-memory-mcp",
+      "title": "Giving Claude Code Persistent Project Memory With MCP",
+      "publishedAt": "2026-08-31",
+      "topicTag": "claude-code-persistent-context"
+    },
+    {
       "slug": "sqlite-vs-postgres-mcp-store",
       "title": "SQLite or Postgres: Choosing Your MCP Context Store",
       "publishedAt": "2026-08-29",
@@ -74,7 +80,6 @@
     }
   ],
   "backlog": [
-    { "topicTag": "claude-code-persistent-context", "workingTitle": "Giving Claude Code Persistent Project Memory With MCP" },
     { "topicTag": "chatgpt-projects-vs-bubbles", "workingTitle": "ChatGPT Projects vs. open-context Bubbles: Same Idea, Different Layer" }
   ]
 }

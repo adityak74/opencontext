@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/opencontext-logo.png" />
+  <title>Giving Claude Code Persistent Project Memory With MCP</title>
+  <meta name="description" content="CLAUDE.md is static and hand-written. See how an MCP context-store server gives Claude Code dynamic, queryable project memory it writes and recalls itself." />
+  <link rel="canonical" href="https://open-context.dev/blog/claude-code-persistent-memory-mcp/" />
+  <meta property="og:title" content="Giving Claude Code Persistent Project Memory With MCP" />
+  <meta property="og:description" content="CLAUDE.md is static and hand-written. See how an MCP context-store server gives Claude Code dynamic, queryable project memory it writes and recalls itself." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://open-context.dev/blog/claude-code-persistent-memory-mcp/" />
+  <meta property="og:image" content="https://open-context.dev/opencontext-logo.png" />
+  <meta property="article:published_time" content="2026-08-31" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Giving Claude Code Persistent Project Memory With MCP" />
+  <meta name="twitter:description" content="CLAUDE.md is static and hand-written. See how an MCP context-store server gives Claude Code dynamic, queryable project memory it writes and recalls itself." />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BlogPosting",
+        "headline": "Giving Claude Code Persistent Project Memory With MCP",
+        "description": "CLAUDE.md is static and hand-written. See how an MCP context-store server gives Claude Code dynamic, queryable project memory it writes and recalls itself.",
+        "datePublished": "2026-08-31",
+        "dateModified": "2026-08-31",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://open-context.dev/blog/claude-code-persistent-memory-mcp/" },
+        "image": "https://open-context.dev/opencontext-logo.png",
+        "author": { "@type": "Organization", "name": "open-context", "url": "https://open-context.dev/" },
+        "publisher": {
+          "@type": "Organization",
+          "name": "open-context",
+          "logo": { "@type": "ImageObject", "url": "https://open-context.dev/opencontext-logo.png" }
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Does open-context replace CLAUDE.md?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. CLAUDE.md stays useful for instructions you want Claude to follow every session — coding conventions, commands, house rules. open-context's MCP server adds a second, complementary layer: memory Claude writes and recalls itself as facts come up, instead of memory you have to hand-write in advance." }
+          },
+          {
+            "@type": "Question",
+            "name": "Do I need Docker to connect open-context to Claude Code?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. You can run the MCP server directly with Node.js after npm run build, or in dev mode with npx tsx and no build step at all. Docker is the recommended path because it bundles the server with zero local dependencies, but it isn't required." }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I keep memory separate for different projects?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. open-context's bubble tools (create_bubble, list_bubbles, get_bubble) let Claude group contexts under a named project workspace, so recall_context and search_contexts can be scoped to just that project instead of everything you've ever saved." }
+          },
+          {
+            "@type": "Question",
+            "name": "Where does the memory actually get stored?",
+            "acceptedAnswer": { "@type": "Answer", "text": "By default, a local JSON file at ~/.opencontext/contexts.json. Set OPENCONTEXT_DB_URL to move it into SQLite, Postgres, MongoDB, Redis, or one of open-context's other 15 supported database backends, with identical tool behavior either way." }
+          },
+          {
+            "@type": "Question",
+            "name": "Does this only work with Claude Code, or Claude Desktop too?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Both. The MCP server runs the same stdio process either way — Claude Code reads its config from ~/.claude/settings.json and Claude Desktop from claude_desktop_config.json, but the server and its tools are identical." }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  <style>
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Regular-Trial-BF63f6cbd970ee9.otf') format('opentype'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Medium-Trial-BF63f6cbdb24b6d.otf') format('opentype'); font-weight: 500; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Bold-Trial-BF63f6cbda1877f.otf') format('opentype'); font-weight: 700; font-style: normal; }
+
+    :root {
+      --bg: #000000;
+      --card: #0a0a0a;
+      --border: #262626;
+      --fg: #fafafa;
+      --muted: #a1a1aa;
+      --accent: #4ade80;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Styrene A', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.7;
+    }
+    a { color: inherit; }
+    header {
+      position: sticky; top: 0; z-index: 40;
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 0.9rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(6px);
+    }
+    header .brand { display: flex; align-items: center; gap: 0.5rem; margin-right: auto; text-decoration: none; }
+    header .brand img { width: 32px; height: 32px; border-radius: 3px; }
+    header .brand span { font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em; }
+    header nav { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--muted); }
+    header nav a { text-decoration: none; }
+    header nav a:hover, header nav a.active { color: var(--fg); }
+
+    main { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+    .meta { font-size: 0.8rem; color: var(--muted); font-family: monospace; margin-bottom: 0.75rem; }
+    h1 { font-size: 2.1rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; margin: 0 0 1.5rem; }
+    h2 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em; margin: 2.5rem 0 1rem; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 1.75rem 0 0.6rem; }
+    p { color: #e4e4e7; margin: 0 0 1.1rem; }
+    p.lead { font-size: 1.1rem; color: var(--fg); }
+    ul, ol { color: #e4e4e7; padding-left: 1.3rem; margin: 0 0 1.1rem; }
+    li { margin-bottom: 0.4rem; }
+    code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.4rem; font-size: 0.85em; }
+    pre { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; overflow-x: auto; font-size: 0.85rem; }
+    pre code { border: none; padding: 0; background: none; }
+    a.inline-link { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+    .takeaways {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0 2.5rem;
+    }
+    .takeaways p.label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; color: var(--accent); font-weight: 600; margin: 0 0 0.75rem; }
+    .takeaways ul { margin: 0; }
+    .table-wrap { overflow-x: auto; margin: 0 0 1.1rem; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+    th { color: var(--muted); font-weight: 600; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+    .cta {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin: 2.5rem 0;
+      text-align: center;
+    }
+    .cta a {
+      display: inline-block;
+      margin-top: 0.75rem;
+      background: var(--fg);
+      color: #000;
+      font-weight: 600;
+      padding: 0.55rem 1.25rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem; display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 0.75rem;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    footer a { text-decoration: none; margin-left: 1rem; }
+    footer a:hover { color: var(--fg); }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">
+      <img src="/opencontext-logo.png" alt="open-context" />
+      <span>open-context</span>
+    </a>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/blog/" class="active">Blog</a>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <article>
+      <div class="meta">August 31, 2026 · 7 min read</div>
+      <h1>Giving Claude Code Persistent Project Memory With MCP</h1>
+
+      <p class="lead">
+        <code>CLAUDE.md</code> gives Claude Code static instructions you write by hand and it reloads at the
+        start of every session — it never learns anything new on its own. To get real persistent memory,
+        where Claude remembers facts it picked up mid-conversation and recalls them weeks later, you connect
+        Claude Code to an MCP context-store server. <a class="inline-link" href="/">open-context</a> is one:
+        it adds <code>save_context</code> and <code>recall_context</code> tools backed by a local database,
+        so Claude can write memory itself instead of waiting for you to write it for it.
+      </p>
+
+      <div class="takeaways">
+        <p class="label">Key takeaways</p>
+        <ul>
+          <li><code>CLAUDE.md</code> is a static file hierarchy (enterprise → project → user) that Claude reads at launch; it doesn't update itself as you work.</li>
+          <li>An MCP context-store server gives Claude active memory it can write and query mid-session via tool calls, not just instructions it reads once.</li>
+          <li>open-context's MCP server persists that memory locally — a JSON file by default, or any of 15 supported database backends via <code>OPENCONTEXT_DB_URL</code>.</li>
+          <li>Bubbles let you scope memory to one project, the same instinct behind per-repo <code>CLAUDE.md</code> files, but populated by Claude instead of by hand.</li>
+          <li>Setup is a few lines in <code>~/.claude/settings.json</code> pointing at a local Node build or the official Docker image — no external API calls beyond your own machine.</li>
+        </ul>
+      </div>
+
+      <h2>Why CLAUDE.md alone isn't memory</h2>
+      <p>
+        Claude Code's memory system, as <a class="inline-link" href="https://docs.anthropic.com/en/docs/claude-code/memory" target="_blank" rel="noopener noreferrer">Anthropic's own docs describe it</a>,
+        is a hierarchy of <code>CLAUDE.md</code> files: an optional enterprise policy file, a project-level
+        <code>./CLAUDE.md</code> for team-shared instructions, and a user-level <code>~/.claude/CLAUDE.md</code>
+        for personal preferences. All of them load automatically when Claude Code launches, with files higher
+        in the hierarchy taking precedence.
+      </p>
+      <p>
+        That's genuinely useful — it's how a team encodes "run <code>npm test</code> before committing" or "we
+        use conventional commits" once and has every session respect it. But it's still a file <em>you</em>
+        write. Claude doesn't add a line to <code>CLAUDE.md</code> mid-conversation because it learned your
+        deploy process changed last Tuesday. Ask it to remember something new and, without another layer, that
+        fact is gone the moment the session ends.
+      </p>
+
+      <h2>What an MCP context-store server adds</h2>
+      <p>
+        The <a class="inline-link" href="https://modelcontextprotocol.io/" target="_blank" rel="noopener noreferrer">Model Context Protocol</a>
+        is the open standard Anthropic introduced for connecting Claude to external tools and data over a
+        simple JSON-RPC interface. open-context uses it to expose six memory tools: <code>save_context</code>,
+        <code>recall_context</code>, <code>list_contexts</code>, <code>search_contexts</code>,
+        <code>update_context</code>, and <code>delete_context</code>. Instead of a file Claude re-reads, these
+        are calls Claude makes — the same way it calls a file-editing or shell tool — whenever something worth
+        keeping comes up.
+      </p>
+      <p>
+        Say "remember that we're deprecating the v1 endpoint in favor of v2" mid-session, and Claude calls
+        <code>save_context</code> with tags like <code>["decision", "api"]</code>. Start a brand-new session
+        next week and ask "what did we decide about the v1 endpoint?" — Claude calls <code>recall_context</code>
+        and gets it back, verbatim, with no re-explaining required.
+      </p>
+
+      <h2>Connecting open-context to Claude Code</h2>
+      <p>
+        The MCP server ships in the same repo as the CLI and web UI. Two setup paths, both edits to
+        <code>~/.claude/settings.json</code>:
+      </p>
+
+      <h3>Local Node.js build</h3>
+      <pre><code>npm run build</code></pre>
+      <pre><code>{
+  "mcpServers": {
+    "open-context": {
+      "command": "node",
+      "args": ["/path/to/opencontext/dist/mcp/index.js"]
+    }
+  }
+}</code></pre>
+
+      <h3>Docker (no local dependencies)</h3>
+      <pre><code>{
+  "mcpServers": {
+    "open-context": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "-v", "opencontext-data:/root/.opencontext",
+               "adityakarnam/open-context:latest", "node", "dist/mcp/index.js"]
+    }
+  }
+}</code></pre>
+      <p>
+        Restart Claude Code and the six tools are available immediately — no manual invocation needed, Claude
+        picks them up from the trigger phrases in each tool's description ("remember this", "what did I say
+        about...", and so on).
+      </p>
+
+      <h2>Scoping memory to one project with bubbles</h2>
+      <p>
+        A single flat pile of saved context works fine at first, then gets noisy once you're using Claude Code
+        across several repos. open-context's <em>bubbles</em> solve the same problem <code>CLAUDE.md</code>
+        solves for instructions — per-project scope — but for memory Claude accumulates on its own. Claude
+        calls <code>create_bubble</code> once for a project, then passes that <code>bubbleId</code> on future
+        <code>save_context</code> calls so recall stays scoped to the right codebase instead of surfacing notes
+        from an unrelated project. See
+        <a class="inline-link" href="/blog/bubbles-project-workspaces/">Organize Claude's MCP Memory by Project With Bubbles</a>
+        for the full walkthrough.
+      </p>
+
+      <h2>Where the memory actually lives</h2>
+      <p>
+        By default, open-context writes to a JSON file at <code>~/.opencontext/contexts.json</code> — no
+        setup required. Set <code>OPENCONTEXT_DB_URL</code> and the exact same six tools read and write to
+        SQLite, Postgres, MongoDB, Redis, or ten other supported backends instead, with identical behavior.
+        Nothing about how Claude calls the tools changes; only where the bytes land does. If you're deciding
+        between a file and a real database for a team setup, the
+        <a class="inline-link" href="/blog/mcp-persistent-memory/">MCP persistent memory setup guide</a>
+        covers the tradeoffs in more depth.
+      </p>
+
+      <h2>Use both, not one instead of the other</h2>
+      <p>
+        <code>CLAUDE.md</code> and an MCP context store aren't competing options — they cover different jobs.
+        <code>CLAUDE.md</code> is for instructions you always want followed: conventions, commands, house
+        rules, checked into git so the whole team gets them. An MCP memory server is for facts that accumulate
+        as you work — decisions made mid-session, context that would otherwise live only in your own memory of
+        the conversation. Wire up both, and Claude Code starts every session with your team's rules already
+        loaded and a growing, queryable record of everything it's learned since.
+      </p>
+
+      <div class="cta">
+        <p style="margin:0; color: var(--muted);">Give Claude Code memory that survives the session.</p>
+        <a href="/">Get started with open-context →</a>
+      </div>
+
+      <h2>FAQ</h2>
+
+      <h3>Does open-context replace CLAUDE.md?</h3>
+      <p>No. <code>CLAUDE.md</code> stays useful for instructions you want Claude to follow every session — coding conventions, commands, house rules. open-context's MCP server adds a second, complementary layer: memory Claude writes and recalls itself as facts come up, instead of memory you have to hand-write in advance.</p>
+
+      <h3>Do I need Docker to connect open-context to Claude Code?</h3>
+      <p>No. You can run the MCP server directly with Node.js after <code>npm run build</code>, or in dev mode with <code>npx tsx</code> and no build step at all. Docker is the recommended path because it bundles the server with zero local dependencies, but it isn't required.</p>
+
+      <h3>Can I keep memory separate for different projects?</h3>
+      <p>Yes. open-context's bubble tools (<code>create_bubble</code>, <code>list_bubbles</code>, <code>get_bubble</code>) let Claude group contexts under a named project workspace, so <code>recall_context</code> and <code>search_contexts</code> can be scoped to just that project instead of everything you've ever saved.</p>
+
+      <h3>Where does the memory actually get stored?</h3>
+      <p>By default, a local JSON file at <code>~/.opencontext/contexts.json</code>. Set <code>OPENCONTEXT_DB_URL</code> to move it into SQLite, Postgres, MongoDB, Redis, or one of open-context's other 15 supported database backends, with identical tool behavior either way.</p>
+
+      <h3>Does this only work with Claude Code, or Claude Desktop too?</h3>
+      <p>Both. The MCP server runs the same stdio process either way — Claude Code reads its config from <code>~/.claude/settings.json</code> and Claude Desktop from <code>claude_desktop_config.json</code>, but the server and its tools are identical.</p>
+    </article>
+  </main>
+
+  <footer>
+    <span>open-context.dev — open source, self-hosted</span>
+    <div>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://hub.docker.com/r/adityakarnam/opencontext" target="_blank" rel="noopener noreferrer">Docker Hub</a>
+    </div>
+  </footer>
+</body>
+</html>
