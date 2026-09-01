@@ -1,6 +1,12 @@
 {
   "posts": [
     {
+      "slug": "chatgpt-projects-vs-bubbles",
+      "title": "ChatGPT Projects vs. Bubbles: Same Idea, Different Layer",
+      "publishedAt": "2026-09-01",
+      "topicTag": "chatgpt-projects-vs-bubbles"
+    },
+    {
       "slug": "claude-code-persistent-memory-mcp",
       "title": "Giving Claude Code Persistent Project Memory With MCP",
       "publishedAt": "2026-08-31",
@@ -80,6 +86,10 @@
     }
   ],
   "backlog": [
-    { "topicTag": "chatgpt-projects-vs-bubbles", "workingTitle": "ChatGPT Projects vs. open-context Bubbles: Same Idea, Different Layer" }
+    { "topicTag": "claude-code-hooks-context", "workingTitle": "Using Claude Code Hooks to Auto-Save Context With open-context" },
+    { "topicTag": "context-window-vs-memory", "workingTitle": "Context Window vs. Persistent Memory: Why Claude Needs Both" },
+    { "topicTag": "mcp-server-vs-plugin", "workingTitle": "MCP Server vs. Browser Extension: Why open-context Chose MCP" },
+    { "topicTag": "team-shared-ai-memory", "workingTitle": "Should a Team Share One MCP Context Store? Tradeoffs and Setup" },
+    { "topicTag": "redis-mongodb-mcp-store", "workingTitle": "Redis or MongoDB for MCP Memory: Picking a Document Backend" }
   ]
 }

@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/opencontext-logo.png" />
+  <title>ChatGPT Projects vs. Bubbles: Same Idea, Different Layer</title>
+  <meta name="description" content="ChatGPT Projects groups chats and files by project. open-context Bubbles group Claude MCP memory the same way, but for persistent context, not conversations." />
+  <link rel="canonical" href="https://open-context.dev/blog/chatgpt-projects-vs-bubbles/" />
+  <meta property="og:title" content="ChatGPT Projects vs. Bubbles: Same Idea, Different Layer" />
+  <meta property="og:description" content="ChatGPT Projects groups chats and files by project. open-context Bubbles group Claude MCP memory the same way, but for persistent context, not conversations." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://open-context.dev/blog/chatgpt-projects-vs-bubbles/" />
+  <meta property="og:image" content="https://open-context.dev/opencontext-logo.png" />
+  <meta property="article:published_time" content="2026-09-01" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="ChatGPT Projects vs. Bubbles: Same Idea, Different Layer" />
+  <meta name="twitter:description" content="ChatGPT Projects organizes chats and files. open-context Bubbles organize Claude's MCP memory. Here's how the two workspace models actually differ." />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BlogPosting",
+        "headline": "ChatGPT Projects vs. Bubbles: Same Idea, Different Layer",
+        "description": "ChatGPT Projects groups chats and files by project. open-context Bubbles group Claude MCP memory the same way, but for persistent context, not conversations.",
+        "datePublished": "2026-09-01",
+        "dateModified": "2026-09-01",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://open-context.dev/blog/chatgpt-projects-vs-bubbles/" },
+        "image": "https://open-context.dev/opencontext-logo.png",
+        "author": { "@type": "Organization", "name": "open-context", "url": "https://open-context.dev/" },
+        "publisher": {
+          "@type": "Organization",
+          "name": "open-context",
+          "logo": { "@type": "ImageObject", "url": "https://open-context.dev/opencontext-logo.png" }
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is a Bubble the same thing as a ChatGPT Project?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. A ChatGPT Project groups whole conversations, uploaded files, and custom instructions inside ChatGPT's own interface. A Bubble groups the individual memories saved through open-context's MCP server, and those memories are visible to any MCP client, not just one chat app." }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I use ChatGPT Projects and open-context Bubbles at the same time?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes, they don't conflict. ChatGPT Projects only organizes work inside ChatGPT. Bubbles organize MCP memory used by Claude Code, Claude Desktop, and other MCP clients, which is a separate system entirely." }
+          },
+          {
+            "@type": "Question",
+            "name": "Does a Bubble store full conversations like a ChatGPT Project does?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. A Bubble stores context entries — discrete notes, facts, and summaries saved with save_context — not entire chat transcripts. For full conversation history, open-context's separate conversion pipeline turns a ChatGPT export into per-conversation markdown files instead." }
+          },
+          {
+            "@type": "Question",
+            "name": "Do I need a paid Claude plan to use Bubbles, the way ChatGPT Projects requires Plus or Pro?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. Bubbles are a feature of open-context's self-hosted MCP server, not a Claude subscription tier. They work with any Claude plan that can connect to an MCP server, including the free tier via Claude Desktop or Claude Code." }
+          },
+          {
+            "@type": "Question",
+            "name": "Can Claude create a Bubble on its own, the way I'd manually create a ChatGPT Project?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. open-context exposes create_bubble, list_bubbles, get_bubble, update_bubble, and delete_bubble as MCP tools, so Claude can set up and manage project workspaces mid-conversation without you opening a UI." }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  <style>
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Regular-Trial-BF63f6cbd970ee9.otf') format('opentype'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Medium-Trial-BF63f6cbdb24b6d.otf') format('opentype'); font-weight: 500; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Bold-Trial-BF63f6cbda1877f.otf') format('opentype'); font-weight: 700; font-style: normal; }
+
+    :root {
+      --bg: #000000;
+      --card: #0a0a0a;
+      --border: #262626;
+      --fg: #fafafa;
+      --muted: #a1a1aa;
+      --accent: #4ade80;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Styrene A', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.7;
+    }
+    a { color: inherit; }
+    header {
+      position: sticky; top: 0; z-index: 40;
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 0.9rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(6px);
+    }
+    header .brand { display: flex; align-items: center; gap: 0.5rem; margin-right: auto; text-decoration: none; }
+    header .brand img { width: 32px; height: 32px; border-radius: 3px; }
+    header .brand span { font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em; }
+    header nav { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--muted); }
+    header nav a { text-decoration: none; }
+    header nav a:hover, header nav a.active { color: var(--fg); }
+
+    main { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+    .meta { font-size: 0.8rem; color: var(--muted); font-family: monospace; margin-bottom: 0.75rem; }
+    h1 { font-size: 2.1rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; margin: 0 0 1.5rem; }
+    h2 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em; margin: 2.5rem 0 1rem; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 1.75rem 0 0.6rem; }
+    p { color: #e4e4e7; margin: 0 0 1.1rem; }
+    p.lead { font-size: 1.1rem; color: var(--fg); }
+    ul, ol { color: #e4e4e7; padding-left: 1.3rem; margin: 0 0 1.1rem; }
+    li { margin-bottom: 0.4rem; }
+    code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.4rem; font-size: 0.85em; }
+    pre { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; overflow-x: auto; font-size: 0.85rem; }
+    pre code { border: none; padding: 0; background: none; }
+    a.inline-link { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+    .takeaways {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0 2.5rem;
+    }
+    .takeaways p.label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; color: var(--accent); font-weight: 600; margin: 0 0 0.75rem; }
+    .takeaways ul { margin: 0; }
+    .table-wrap { overflow-x: auto; margin: 0 0 1.1rem; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+    th { color: var(--muted); font-weight: 600; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+    .cta {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin: 2.5rem 0;
+      text-align: center;
+    }
+    .cta a {
+      display: inline-block;
+      margin-top: 0.75rem;
+      background: var(--fg);
+      color: #000;
+      font-weight: 600;
+      padding: 0.55rem 1.25rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem; display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 0.75rem;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    footer a { text-decoration: none; margin-left: 1rem; }
+    footer a:hover { color: var(--fg); }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">
+      <img src="/opencontext-logo.png" alt="open-context" />
+      <span>open-context</span>
+    </a>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/blog/" class="active">Blog</a>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <article>
+      <div class="meta">September 1, 2026 · 6 min read</div>
+      <h1>ChatGPT Projects vs. Bubbles: Same Idea, Different Layer</h1>
+
+      <p class="lead">
+        ChatGPT Projects and open-context Bubbles both let you group your AI work into named
+        workspaces, but they organize different things at different layers. Projects bundle
+        chats, uploaded files, and custom instructions inside ChatGPT's own interface. Bubbles
+        group the persistent memories saved through open-context's
+        <a class="inline-link" href="/blog/mcp-persistent-memory/">MCP server</a> — context that
+        follows you into Claude Code, Claude Desktop, and any other MCP client, not just one
+        chat window. If you're moving from ChatGPT to Claude, Bubbles are the closest equivalent
+        to Projects at the memory layer, not a feature you lose in the switch.
+      </p>
+
+      <div class="takeaways">
+        <p class="label">Key takeaways</p>
+        <ul>
+          <li>ChatGPT Projects group chats, uploaded files, and custom instructions inside a single ChatGPT workspace, currently available on Plus, Pro, and Team plans.</li>
+          <li>open-context Bubbles group MCP context entries — memories Claude saves and recalls — into project workspaces, independent of which chat client you're using.</li>
+          <li>Projects live only inside ChatGPT's UI. Bubbles live in the MCP context store, so the same bubble's contexts are visible to Claude Code, Claude Desktop, and any other MCP client at once.</li>
+          <li>Both are non-destructive by default: removing a chat from a Project doesn't delete it, and <code>delete_bubble</code> unassigns contexts rather than deleting them unless you explicitly ask.</li>
+          <li>Claude can create and manage Bubbles on its own mid-conversation via five MCP tools; ChatGPT Projects are set up only through the ChatGPT interface.</li>
+        </ul>
+      </div>
+
+      <h2>What ChatGPT Projects actually groups</h2>
+      <p>
+        A ChatGPT Project is a dedicated space for a specific piece of work — a client, a
+        codebase, a research topic — that holds chats, files, and instructions together so you
+        don't have to restate the same background in every new conversation. According to
+        <a class="inline-link" href="https://openai.com/academy/projects/" target="_blank" rel="noopener noreferrer">OpenAI's own documentation</a>,
+        starting a chat inside a Project lets the model reference other chats in that same
+        workspace, and Projects can hold uploaded files and project-level instructions that
+        apply across every conversation inside them. The feature is rolling out to ChatGPT Plus,
+        Pro, and Team subscribers, with free-tier access planned for later.
+      </p>
+      <p>
+        The unit being organized is the conversation. A Project is a folder of chats plus shared
+        context for those chats — it lives entirely inside ChatGPT and doesn't extend to any
+        other tool.
+      </p>
+
+      <h2>What Bubbles actually group</h2>
+      <p>
+        A <a class="inline-link" href="/blog/bubbles-project-workspaces/">Bubble</a> in
+        open-context is a named workspace too, but the unit being organized is a saved memory,
+        not a conversation. open-context's MCP server exposes <code>save_context</code> and
+        <code>recall_context</code> tools that let Claude write and retrieve discrete notes —
+        a client's API conventions, a project's deployment steps, your communication
+        preferences. Once you have more than a few dozen of those, a flat list gets hard to
+        search. A bubble is an optional <code>bubbleId</code> field on each context entry that
+        groups related memories together, the same way a folder groups files.
+      </p>
+      <p>
+        Because bubbles live in the MCP context store rather than inside any one chat app, the
+        same bubble is visible everywhere open-context's MCP server is connected — Claude Code
+        on your laptop, Claude Desktop, or any other MCP-compatible client pointed at the same
+        backend.
+      </p>
+
+      <h2>The core difference: conversation layer vs. memory layer</h2>
+      <p>The two features solve adjacent but distinct problems:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th></th><th>ChatGPT Projects</th><th>open-context Bubbles</th></tr></thead>
+          <tbody>
+            <tr><td>What it groups</td><td>Whole conversations, files, instructions</td><td>Individual saved memories (context entries)</td></tr>
+            <tr><td>Where it lives</td><td>Inside ChatGPT only</td><td>The MCP context store — any connected client</td></tr>
+            <tr><td>Who can create one</td><td>You, through the ChatGPT UI</td><td>You, or Claude itself via MCP tools</td></tr>
+            <tr><td>Access requirement</td><td>ChatGPT Plus, Pro, or Team</td><td>Any Claude plan that supports MCP</td></tr>
+            <tr><td>Deleting it</td><td>Removes the Project; chats can be kept or deleted</td><td>Unassigns contexts by default, keeps them intact</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        A Project is scoped to a single product. A bubble is scoped to a concept — a project or
+        client — that can span every tool you use Claude from. That's the practical difference:
+        Projects make ChatGPT better at remembering itself; Bubbles make Claude's memory
+        portable across every place it shows up.
+      </p>
+
+      <h2>Where the two behave the same way</h2>
+      <p>
+        Despite living at different layers, the two features share a design instinct worth
+        calling out: neither one is destructive by default. Removing a chat from a ChatGPT
+        Project doesn't delete the chat — it just leaves the workspace. Deleting an
+        open-context bubble works the same way: <code>delete_bubble</code> unassigns the
+        contexts inside it, clearing their <code>bubbleId</code> and leaving the memories
+        themselves untouched, unless you explicitly pass <code>deleteContexts: true</code>.
+        Both treat "organize" and "delete" as separate actions, which matters once you're
+        actually relying on the grouping day to day instead of just trying it once.
+      </p>
+
+      <h2>Moving from ChatGPT Projects to Bubbles</h2>
+      <p>
+        If you've used ChatGPT Projects to keep client work or codebases separate, recreating
+        that structure in open-context takes three steps:
+      </p>
+      <ol>
+        <li>
+          <a class="inline-link" href="/blog/migrate-chatgpt-to-claude/">Export and convert</a>
+          your existing ChatGPT history so past conversations are available as searchable
+          markdown, independent of bubbles.
+        </li>
+        <li>
+          Create one bubble per Project you had — via the web UI's <code>/bubbles</code> page,
+          the REST API, or by telling Claude directly ("create a bubble for the Acme project"),
+          since bubble creation is itself an MCP tool call.
+        </li>
+        <li>
+          Going forward, ask Claude to save context "for" that bubble. Once Claude knows a
+          bubble's ID, <code>save_context</code> and <code>update_context</code> both accept a
+          <code>bubbleId</code>, so new memories land in the right workspace automatically.
+        </li>
+      </ol>
+      <p>
+        Nothing about this requires giving up ChatGPT Projects if you still use ChatGPT for
+        some work — the two systems don't overlap, so they can run in parallel.
+      </p>
+
+      <div class="cta">
+        <p style="margin:0; color: var(--muted);">Group Claude's memory into project workspaces in a few minutes.</p>
+        <a href="/">Get started with open-context →</a>
+      </div>
+
+      <h2>FAQ</h2>
+
+      <h3>Is a Bubble the same thing as a ChatGPT Project?</h3>
+      <p>No. A ChatGPT Project groups whole conversations, uploaded files, and custom instructions inside ChatGPT's own interface. A Bubble groups the individual memories saved through open-context's MCP server, and those memories are visible to any MCP client, not just one chat app.</p>
+
+      <h3>Can I use ChatGPT Projects and open-context Bubbles at the same time?</h3>
+      <p>Yes, they don't conflict. ChatGPT Projects only organizes work inside ChatGPT. Bubbles organize MCP memory used by Claude Code, Claude Desktop, and other MCP clients, which is a separate system entirely.</p>
+
+      <h3>Does a Bubble store full conversations like a ChatGPT Project does?</h3>
+      <p>No. A Bubble stores context entries — discrete notes, facts, and summaries saved with <code>save_context</code> — not entire chat transcripts. For full conversation history, open-context's separate conversion pipeline turns a ChatGPT export into per-conversation markdown files instead.</p>
+
+      <h3>Do I need a paid Claude plan to use Bubbles, the way ChatGPT Projects requires Plus or Pro?</h3>
+      <p>No. Bubbles are a feature of open-context's self-hosted MCP server, not a Claude subscription tier. They work with any Claude plan that can connect to an MCP server, including the free tier via Claude Desktop or Claude Code.</p>
+
+      <h3>Can Claude create a Bubble on its own, the way I'd manually create a ChatGPT Project?</h3>
+      <p>Yes. open-context exposes <code>create_bubble</code>, <code>list_bubbles</code>, <code>get_bubble</code>, <code>update_bubble</code>, and <code>delete_bubble</code> as MCP tools, so Claude can set up and manage project workspaces mid-conversation without you opening a UI.</p>
+    </article>
+  </main>
+
+  <footer>
+    <span>open-context.dev — open source, self-hosted</span>
+    <div>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://hub.docker.com/r/adityakarnam/opencontext" target="_blank" rel="noopener noreferrer">Docker Hub</a>
+    </div>
+  </footer>
+</body>
+</html>
