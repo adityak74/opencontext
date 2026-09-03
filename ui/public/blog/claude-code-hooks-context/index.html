@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/opencontext-logo.png" />
+  <title>Using Claude Code Hooks to Auto-Save Project Context</title>
+  <meta name="description" content="Claude Code hooks like PreCompact and SessionEnd can auto-save session context to open-context's local store — no need to remember to ask Claude to save it." />
+  <link rel="canonical" href="https://open-context.dev/blog/claude-code-hooks-context/" />
+  <meta property="og:title" content="Using Claude Code Hooks to Auto-Save Project Context" />
+  <meta property="og:description" content="Claude Code hooks like PreCompact and SessionEnd can auto-save session context to open-context's local store — no need to remember to ask Claude to save it." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://open-context.dev/blog/claude-code-hooks-context/" />
+  <meta property="og:image" content="https://open-context.dev/opencontext-logo.png" />
+  <meta property="article:published_time" content="2026-09-03" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Using Claude Code Hooks to Auto-Save Project Context" />
+  <meta name="twitter:description" content="Claude Code hooks like PreCompact and SessionEnd can auto-save session context to open-context's local store — no need to remember to ask Claude to save it." />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BlogPosting",
+        "headline": "Using Claude Code Hooks to Auto-Save Project Context",
+        "description": "Claude Code hooks like PreCompact and SessionEnd can auto-save session context to open-context's local store — no need to remember to ask Claude to save it.",
+        "datePublished": "2026-09-03",
+        "dateModified": "2026-09-03",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://open-context.dev/blog/claude-code-hooks-context/" },
+        "image": "https://open-context.dev/opencontext-logo.png",
+        "author": { "@type": "Organization", "name": "open-context", "url": "https://open-context.dev/" },
+        "publisher": {
+          "@type": "Organization",
+          "name": "open-context",
+          "logo": { "@type": "ImageObject", "url": "https://open-context.dev/opencontext-logo.png" }
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Do I need the MCP server running for a hook to save context, or just the REST API?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Just the REST API. The hook script calls open-context's HTTP endpoint (POST /api/contexts) directly with curl, so the npm run server process needs to be running, but Claude doesn't need to invoke any MCP tool itself for the save to happen." }
+          },
+          {
+            "@type": "Question",
+            "name": "Which hook event should I use — Stop or PreCompact?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Stop fires after every single turn, which is usually too frequent for a whole-conversation summary. PreCompact fires once, right before Claude Code compacts older context, which is close to the moment detail would otherwise be lost. Pair it with SessionEnd for a final save when a session closes." }
+          },
+          {
+            "@type": "Question",
+            "name": "Will a hook see the actual conversation content, or do I have to write my own summary?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Hooks receive a transcript_path field pointing at the full session transcript as JSONL, so a hook script can read that file and extract or summarize the parts worth keeping instead of guessing at what happened." }
+          },
+          {
+            "@type": "Question",
+            "name": "Does this replace the save_context MCP tool?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. It is a safety net alongside it, not a replacement. Ask Claude to save something mid-conversation with save_context whenever you want it done deliberately, and let a hook catch what falls through the cracks automatically at session boundaries." }
+          },
+          {
+            "@type": "Question",
+            "name": "Is this safe if the open-context server isn't running?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. A failed curl call just means nothing was saved that round, not a broken Claude Code session — events like PreCompact and SessionEnd don't block on a non-zero hook exit code the way PreToolUse can. Appending || true to the curl call makes that explicit." }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  <style>
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Regular-Trial-BF63f6cbd970ee9.otf') format('opentype'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Medium-Trial-BF63f6cbdb24b6d.otf') format('opentype'); font-weight: 500; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Bold-Trial-BF63f6cbda1877f.otf') format('opentype'); font-weight: 700; font-style: normal; }
+
+    :root {
+      --bg: #000000;
+      --card: #0a0a0a;
+      --border: #262626;
+      --fg: #fafafa;
+      --muted: #a1a1aa;
+      --accent: #4ade80;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Styrene A', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.7;
+    }
+    a { color: inherit; }
+    header {
+      position: sticky; top: 0; z-index: 40;
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 0.9rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(6px);
+    }
+    header .brand { display: flex; align-items: center; gap: 0.5rem; margin-right: auto; text-decoration: none; }
+    header .brand img { width: 32px; height: 32px; border-radius: 3px; }
+    header .brand span { font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em; }
+    header nav { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--muted); }
+    header nav a { text-decoration: none; }
+    header nav a:hover, header nav a.active { color: var(--fg); }
+
+    main { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+    .meta { font-size: 0.8rem; color: var(--muted); font-family: monospace; margin-bottom: 0.75rem; }
+    h1 { font-size: 2.1rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; margin: 0 0 1.5rem; }
+    h2 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em; margin: 2.5rem 0 1rem; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 1.75rem 0 0.6rem; }
+    p { color: #e4e4e7; margin: 0 0 1.1rem; }
+    p.lead { font-size: 1.1rem; color: var(--fg); }
+    ul, ol { color: #e4e4e7; padding-left: 1.3rem; margin: 0 0 1.1rem; }
+    li { margin-bottom: 0.4rem; }
+    code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.4rem; font-size: 0.85em; }
+    pre { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; overflow-x: auto; font-size: 0.85rem; }
+    pre code { border: none; padding: 0; background: none; }
+    a.inline-link { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+    .takeaways {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0 2.5rem;
+    }
+    .takeaways p.label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; color: var(--accent); font-weight: 600; margin: 0 0 0.75rem; }
+    .takeaways ul { margin: 0; }
+    .table-wrap { overflow-x: auto; margin: 0 0 1.1rem; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+    th { color: var(--muted); font-weight: 600; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+    .cta {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin: 2.5rem 0;
+      text-align: center;
+    }
+    .cta a {
+      display: inline-block;
+      margin-top: 0.75rem;
+      background: var(--fg);
+      color: #000;
+      font-weight: 600;
+      padding: 0.55rem 1.25rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem; display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 0.75rem;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    footer a { text-decoration: none; margin-left: 1rem; }
+    footer a:hover { color: var(--fg); }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">
+      <img src="/opencontext-logo.png" alt="open-context" />
+      <span>open-context</span>
+    </a>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/blog/" class="active">Blog</a>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <article>
+      <div class="meta">September 3, 2026 · 7 min read</div>
+      <h1>Using Claude Code Hooks to Auto-Save Project Context</h1>
+
+      <p class="lead">
+        Claude Code hooks let you run a script at fixed points in a session — before context gets compacted, when a
+        session ends — so you can call <a class="inline-link" href="/">open-context</a>'s REST API and save a
+        summary automatically, without waiting for Claude to remember to call <code>save_context</code> itself.
+        Wire a <code>PreCompact</code> or <code>SessionEnd</code> hook to <code>POST /api/contexts</code> and every
+        session leaves a record behind, whether or not anyone asked it to.
+      </p>
+
+      <div class="takeaways">
+        <p class="label">Key takeaways</p>
+        <ul>
+          <li>Claude Code hooks are shell commands (or HTTP calls, MCP tool calls, prompts, or subagents) that fire on lifecycle events like <code>PreCompact</code>, <code>SessionEnd</code>, and <code>Stop</code>.</li>
+          <li>Each hook receives a JSON payload on stdin, including a <code>transcript_path</code> pointing at the full session transcript — enough to build a real summary, not a guess.</li>
+          <li>A hook can call open-context's REST endpoint directly (<code>POST /api/contexts</code>) with <code>curl</code>, with no MCP tool call and no Claude decision involved.</li>
+          <li><code>PreCompact</code> is the event that matters most for context capture — it fires right before older messages would otherwise be lost to compaction.</li>
+          <li>Hooks are a safety net, not a replacement for the <code>save_context</code> MCP tool — use both, since one is automatic and the other is deliberate.</li>
+        </ul>
+      </div>
+
+      <h2>The gap: memory that depends on Claude remembering to save it</h2>
+      <p>
+        open-context's MCP server gives Claude six tools — <code>save_context</code>, <code>recall_context</code>,
+        <code>list_contexts</code>, <code>search_contexts</code>, <code>update_context</code>, and
+        <code>delete_context</code> — that let it write and read memory mid-conversation. That works well when you
+        explicitly say "remember this." It works less well for everything you didn't think to say out loud: the
+        three false starts before you landed on an approach, the constraint someone mentioned in passing an hour
+        ago, the decision that got made and then never repeated. If Claude doesn't call <code>save_context</code>,
+        none of that survives past the session, no matter how good the tool is.
+      </p>
+      <p>
+        Hooks close that gap from the other direction. Instead of relying on a tool call Claude has to decide to
+        make, a hook fires deterministically at a point in the session lifecycle and runs regardless of what Claude
+        was thinking about at the time.
+      </p>
+
+      <h2>What a Claude Code hook actually is</h2>
+      <p>
+        Hooks are configured in <code>settings.json</code> (project or user level) under a <code>hooks</code> key,
+        one entry per event name. Each entry has a <code>matcher</code> — for tool events like
+        <code>PreToolUse</code> that matches a tool name, for lifecycle events like <code>PreCompact</code> it's
+        typically <code>*</code> — and a list of handlers to run. The simplest and most common handler type is
+        <code>command</code>: a shell script or binary that gets the event's data piped to it as JSON on stdin.
+      </p>
+      <p>Claude Code fires hooks on dozens of events, but a handful matter for context capture specifically:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Event</th><th>Fires when</th></tr></thead>
+          <tbody>
+            <tr><td><code>Stop</code></td><td>Claude finishes responding to a single turn</td></tr>
+            <tr><td><code>PreCompact</code></td><td>Right before Claude Code compacts older context out of the window</td></tr>
+            <tr><td><code>SessionEnd</code></td><td>The session terminates</td></tr>
+            <tr><td><code>SessionStart</code></td><td>A session begins or resumes</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        <code>Stop</code> fires too often to be useful for a whole-session summary — it runs after every single
+        turn. <code>PreCompact</code> is the interesting one: it's the exact moment Claude Code is about to discard
+        detail you might still want, which makes it the natural trigger for "save what matters before it's gone."
+      </p>
+
+      <h2>Wiring a hook to open-context's REST API</h2>
+      <p>
+        Every hook receives a common JSON payload — <code>session_id</code>, <code>cwd</code>,
+        <code>hook_event_name</code>, and a <code>transcript_path</code> pointing at the session's JSONL transcript
+        on disk. A command hook can read that file, pull out the assistant's recent messages, and post them
+        straight to open-context's HTTP server with nothing more exotic than <code>curl</code> and <code>jq</code>.
+      </p>
+
+      <h3>The hook script</h3>
+      <pre><code>#!/bin/bash
+# .claude/hooks/save-context.sh
+INPUT=$(cat)
+TRANSCRIPT=$(echo "$INPUT" | jq -r '.transcript_path')
+
+SUMMARY=$(tail -n 60 "$TRANSCRIPT" \
+  | jq -rs '[.[] | select(.type=="assistant")
+             | .message.content[]? | select(.type=="text") | .text]
+            | join("\n\n")' \
+  | tail -c 4000)
+
+if [ -n "$SUMMARY" ]; then
+  curl -s -X POST http://localhost:3000/api/contexts \
+    -H "Content-Type: application/json" \
+    -d "$(jq -n --arg content "$SUMMARY" \
+          '{content: $content, tags: ["auto-saved", "hook"], source: "claude-code-hook"}')" \
+    > /dev/null || true
+fi
+
+exit 0</code></pre>
+      <p>
+        This reads the last 60 lines of the transcript, keeps only the assistant's text messages, trims it to a
+        reasonable size, and posts it to open-context's <code>POST /api/contexts</code> endpoint — the same
+        endpoint the web UI and the MCP server's <code>save_context</code> tool both write through. It runs with the
+        REST API server (<code>npm run server</code>) already up on port 3000; no MCP connection is required for the
+        save itself.
+      </p>
+
+      <h3>Registering it in settings.json</h3>
+      <pre><code>{
+  "hooks": {
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/save-context.sh",
+            "timeout": 15
+          }
+        ]
+      }
+    ]
+  }
+}</code></pre>
+      <p>
+        <code>${CLAUDE_PROJECT_DIR}</code> resolves to the project root so the same config works from any
+        checkout. Add the identical hook under <code>SessionEnd</code> to get one more save whenever a session
+        closes cleanly, catching context that never triggered a compaction at all.
+      </p>
+
+      <h2>Hooks vs. asking Claude to call save_context</h2>
+      <p>
+        These are complementary, not competing. Ask Claude directly — "remember that we're pinning Node to 25 for
+        this repo" — and it calls <code>save_context</code> with a clean, deliberately-written summary and specific
+        tags. That's the better save whenever you think to make it. A hook is for everything else: the session that
+        ends without anyone saying "remember this," the long debugging thread where the useful conclusion only
+        showed up in the last few messages before compaction. One is precise and occasional; the other is coarse
+        and constant. Run both, and you get deliberate saves for the things you know matter, plus an automatic
+        backstop for the things you'd only realize mattered later. For the deliberate side of that pairing, see
+        <a class="inline-link" href="/blog/claude-code-persistent-memory-mcp/">Giving Claude Code Persistent Project Memory With MCP</a>.
+      </p>
+
+      <h2>Keeping it safe and quiet</h2>
+      <p>
+        A hook script that fails shouldn't be able to break your session. Command hooks run with a timeout (15
+        seconds is plenty for a <code>curl</code> call), and for events like <code>PreCompact</code> and
+        <code>SessionEnd</code> a non-zero exit code doesn't block anything the way it would for
+        <code>PreToolUse</code> — it just means nothing got saved that round. Ending the script with <code>|| true</code>
+        after the <code>curl</code> call makes that explicit, so a stopped server or a network hiccup never surfaces
+        as a broken Claude Code session. Nothing here leaves your machine either: the hook talks to
+        <code>localhost:3000</code>, and everything it saves lands in the same local store
+        (<code>~/.opencontext/contexts.json</code> by default, or whichever of open-context's 15 supported backends
+        you've configured) that the MCP tools already use.
+      </p>
+
+      <div class="cta">
+        <p style="margin:0; color: var(--muted);">Give Claude Code an automatic memory backstop.</p>
+        <a href="/">Get started with open-context →</a>
+      </div>
+
+      <h2>FAQ</h2>
+
+      <h3>Do I need the MCP server running for a hook to save context, or just the REST API?</h3>
+      <p>Just the REST API. The hook script calls open-context's HTTP endpoint (<code>POST /api/contexts</code>) directly with <code>curl</code>, so the <code>npm run server</code> process needs to be running, but Claude doesn't need to invoke any MCP tool itself for the save to happen.</p>
+
+      <h3>Which hook event should I use — Stop or PreCompact?</h3>
+      <p>Stop fires after every single turn, which is usually too frequent for a whole-conversation summary. PreCompact fires once, right before Claude Code compacts older context, which is close to the moment detail would otherwise be lost. Pair it with SessionEnd for a final save when a session closes.</p>
+
+      <h3>Will a hook see the actual conversation content, or do I have to write my own summary?</h3>
+      <p>Hooks receive a <code>transcript_path</code> field pointing at the full session transcript as JSONL, so a hook script can read that file and extract or summarize the parts worth keeping instead of guessing at what happened.</p>
+
+      <h3>Does this replace the save_context MCP tool?</h3>
+      <p>No. It is a safety net alongside it, not a replacement. Ask Claude to save something mid-conversation with <code>save_context</code> whenever you want it done deliberately, and let a hook catch what falls through the cracks automatically at session boundaries.</p>
+
+      <h3>Is this safe if the open-context server isn't running?</h3>
+      <p>Yes. A failed <code>curl</code> call just means nothing was saved that round, not a broken Claude Code session — events like PreCompact and SessionEnd don't block on a non-zero hook exit code the way PreToolUse can. Appending <code>|| true</code> to the curl call makes that explicit.</p>
+    </article>
+  </main>
+
+  <footer>
+    <span>open-context.dev — open source, self-hosted</span>
+    <div>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://hub.docker.com/r/adityakarnam/opencontext" target="_blank" rel="noopener noreferrer">Docker Hub</a>
+    </div>
+  </footer>
+</body>
+</html>

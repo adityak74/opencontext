@@ -1,6 +1,12 @@
 {
   "posts": [
     {
+      "slug": "claude-code-hooks-context",
+      "title": "Using Claude Code Hooks to Auto-Save Project Context",
+      "publishedAt": "2026-09-03",
+      "topicTag": "claude-code-hooks-context"
+    },
+    {
       "slug": "chatgpt-projects-vs-bubbles",
       "title": "ChatGPT Projects vs. Bubbles: Same Idea, Different Layer",
       "publishedAt": "2026-09-01",
@@ -86,7 +92,6 @@
     }
   ],
   "backlog": [
-    { "topicTag": "claude-code-hooks-context", "workingTitle": "Using Claude Code Hooks to Auto-Save Context With open-context" },
     { "topicTag": "context-window-vs-memory", "workingTitle": "Context Window vs. Persistent Memory: Why Claude Needs Both" },
     { "topicTag": "mcp-server-vs-plugin", "workingTitle": "MCP Server vs. Browser Extension: Why open-context Chose MCP" },
     { "topicTag": "team-shared-ai-memory", "workingTitle": "Should a Team Share One MCP Context Store? Tradeoffs and Setup" },
