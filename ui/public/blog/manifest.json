@@ -1,6 +1,12 @@
 {
   "posts": [
     {
+      "slug": "context-window-vs-memory",
+      "title": "Context Window vs. Persistent Memory: Why Claude Needs Both",
+      "publishedAt": "2026-09-05",
+      "topicTag": "context-window-vs-memory"
+    },
+    {
       "slug": "claude-code-hooks-context",
       "title": "Using Claude Code Hooks to Auto-Save Project Context",
       "publishedAt": "2026-09-03",
@@ -92,7 +98,6 @@
     }
   ],
   "backlog": [
-    { "topicTag": "context-window-vs-memory", "workingTitle": "Context Window vs. Persistent Memory: Why Claude Needs Both" },
     { "topicTag": "mcp-server-vs-plugin", "workingTitle": "MCP Server vs. Browser Extension: Why open-context Chose MCP" },
     { "topicTag": "team-shared-ai-memory", "workingTitle": "Should a Team Share One MCP Context Store? Tradeoffs and Setup" },
     { "topicTag": "redis-mongodb-mcp-store", "workingTitle": "Redis or MongoDB for MCP Memory: Picking a Document Backend" }

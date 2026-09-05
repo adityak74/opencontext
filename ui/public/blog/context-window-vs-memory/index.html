@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/opencontext-logo.png" />
+  <title>Context Window vs. Persistent Memory: Why Claude Needs Both</title>
+  <meta name="description" content="Claude's context window is temporary memory for one chat; persistent memory via MCP survives after it closes. Here's the real difference, and why you need both." />
+  <link rel="canonical" href="https://open-context.dev/blog/context-window-vs-memory/" />
+  <meta property="og:title" content="Context Window vs. Persistent Memory: Why Claude Needs Both" />
+  <meta property="og:description" content="Claude's context window is temporary memory for one chat; persistent memory via MCP survives after it closes. Here's the real difference, and why you need both." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://open-context.dev/blog/context-window-vs-memory/" />
+  <meta property="og:image" content="https://open-context.dev/opencontext-logo.png" />
+  <meta property="article:published_time" content="2026-09-05" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Context Window vs. Persistent Memory: Why Claude Needs Both" />
+  <meta name="twitter:description" content="Claude's context window is temporary memory for one chat; persistent memory via MCP survives after it closes. Here's why you need both." />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BlogPosting",
+        "headline": "Context Window vs. Persistent Memory: Why Claude Needs Both",
+        "description": "Claude's context window is temporary memory for one chat; persistent memory via MCP survives after it closes. Here's the real difference, and why you need both.",
+        "datePublished": "2026-09-05",
+        "dateModified": "2026-09-05",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://open-context.dev/blog/context-window-vs-memory/" },
+        "image": "https://open-context.dev/opencontext-logo.png",
+        "author": { "@type": "Organization", "name": "open-context", "url": "https://open-context.dev/" },
+        "publisher": {
+          "@type": "Organization",
+          "name": "open-context",
+          "logo": { "@type": "ImageObject", "url": "https://open-context.dev/opencontext-logo.png" }
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is a context window, in plain terms?",
+            "acceptedAnswer": { "@type": "Answer", "text": "It's the \"working memory\" for one Claude conversation — every message, tool result, and document Claude has seen in the current session, up to a per-model token limit (1M tokens on Claude Sonnet 5 and Opus 5, 200K on Claude Haiku 4.5). It resets when the conversation ends." }
+          },
+          {
+            "@type": "Question",
+            "name": "Does a 1M-token context window mean Claude remembers me across sessions?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. The token limit describes how much one conversation can hold, not whether that information survives into a new one. A fresh chat starts empty regardless of window size unless something — a memory tool, an MCP server, or you pasting old context back in — carries it forward." }
+          },
+          {
+            "@type": "Question",
+            "name": "What's the difference between Anthropic's memory tool and an MCP server like open-context's?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Both persist information outside the context window between sessions. Anthropic's memory tool is a file-based capability built into the Claude API itself; an MCP server like open-context is a separate, open-standard service any MCP-compatible client can connect to, with its own storage (JSON, SQLite, Postgres, and more) that you control." }
+          },
+          {
+            "@type": "Question",
+            "name": "Does giving Claude more context always make its answers better?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. Anthropic's own documentation describes \"context rot\" — accuracy and recall degrading as token count grows, even within the model's limit. Curating what's relevant matters more than maximizing how much is loaded in." }
+          },
+          {
+            "@type": "Question",
+            "name": "Do I need to run a database to get persistent memory with open-context?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. The default store is a single JSON file with zero configuration. You only need a database if you outgrow that — thousands of saved contexts, or multiple machines sharing one memory store — and switching later doesn't require re-architecting anything." }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  <style>
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Regular-Trial-BF63f6cbd970ee9.otf') format('opentype'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Medium-Trial-BF63f6cbdb24b6d.otf') format('opentype'); font-weight: 500; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Bold-Trial-BF63f6cbda1877f.otf') format('opentype'); font-weight: 700; font-style: normal; }
+
+    :root {
+      --bg: #000000;
+      --card: #0a0a0a;
+      --border: #262626;
+      --fg: #fafafa;
+      --muted: #a1a1aa;
+      --accent: #4ade80;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Styrene A', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.7;
+    }
+    a { color: inherit; }
+    header {
+      position: sticky; top: 0; z-index: 40;
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 0.9rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(6px);
+    }
+    header .brand { display: flex; align-items: center; gap: 0.5rem; margin-right: auto; text-decoration: none; }
+    header .brand img { width: 32px; height: 32px; border-radius: 3px; }
+    header .brand span { font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em; }
+    header nav { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--muted); }
+    header nav a { text-decoration: none; }
+    header nav a:hover, header nav a.active { color: var(--fg); }
+
+    main { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+    .meta { font-size: 0.8rem; color: var(--muted); font-family: monospace; margin-bottom: 0.75rem; }
+    h1 { font-size: 2.1rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; margin: 0 0 1.5rem; }
+    h2 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em; margin: 2.5rem 0 1rem; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 1.75rem 0 0.6rem; }
+    p { color: #e4e4e7; margin: 0 0 1.1rem; }
+    p.lead { font-size: 1.1rem; color: var(--fg); }
+    ul, ol { color: #e4e4e7; padding-left: 1.3rem; margin: 0 0 1.1rem; }
+    li { margin-bottom: 0.4rem; }
+    code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.4rem; font-size: 0.85em; }
+    pre { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; overflow-x: auto; font-size: 0.85rem; }
+    pre code { border: none; padding: 0; background: none; }
+    a.inline-link { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+    .takeaways {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0 2.5rem;
+    }
+    .takeaways p.label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; color: var(--accent); font-weight: 600; margin: 0 0 0.75rem; }
+    .takeaways ul { margin: 0; }
+    .table-wrap { overflow-x: auto; margin: 0 0 1.1rem; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+    th { color: var(--muted); font-weight: 600; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+    .cta {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin: 2.5rem 0;
+      text-align: center;
+    }
+    .cta a {
+      display: inline-block;
+      margin-top: 0.75rem;
+      background: var(--fg);
+      color: #000;
+      font-weight: 600;
+      padding: 0.55rem 1.25rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem; display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 0.75rem;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    footer a { text-decoration: none; margin-left: 1rem; }
+    footer a:hover { color: var(--fg); }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">
+      <img src="/opencontext-logo.png" alt="open-context" />
+      <span>open-context</span>
+    </a>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/blog/" class="active">Blog</a>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <article>
+      <div class="meta">September 5, 2026 · 7 min read</div>
+      <h1>Context Window vs. Persistent Memory: Why Claude Needs Both</h1>
+
+      <p class="lead">
+        Claude's context window and persistent memory solve different problems. The context window is
+        temporary working memory that holds everything in the current conversation — up to 1M tokens on
+        models like Claude Sonnet 5 and Claude Opus 5 — and it resets, or gets summarized away, once a
+        session ends. Persistent memory, built with Anthropic's memory tool or an MCP server like
+        <a class="inline-link" href="/">open-context</a>, is what survives after that window closes: facts,
+        preferences, and decisions Claude can read back in a future session that otherwise starts from
+        nothing. A production Claude setup needs both — a large window to reason over what's in front of
+        it right now, and a durable store to carry context forward.
+      </p>
+
+      <div class="takeaways">
+        <p class="label">Key takeaways</p>
+        <ul>
+          <li>A context window is Claude's "working memory" for one conversation — up to 1M tokens on Claude Sonnet 5 and Opus 5, 200K on Claude Haiku 4.5 — and it does not persist once the session ends.</li>
+          <li>More tokens isn't automatically better: Anthropic documents "context rot," where accuracy and recall degrade as token count grows, even well inside the limit.</li>
+          <li>Anthropic's own memory tool exists specifically so Claude can store and retrieve information across conversations "without keeping everything in the context window" — proof Anthropic treats these as two separate layers, not one bigger buffer.</li>
+          <li>MCP (Model Context Protocol), the open standard Anthropic introduced in November 2024, is what lets a tool like open-context give Claude a persistent, queryable memory store outside any single conversation.</li>
+          <li>open-context's MCP server implements this with six context tools — <code>save_context</code>, <code>recall_context</code>, <code>list_contexts</code>, <code>search_contexts</code>, <code>update_context</code>, <code>delete_context</code> — backed by a store you control, from a local JSON file up to Postgres or Redis.</li>
+        </ul>
+      </div>
+
+      <h2>What a context window actually is</h2>
+      <p>
+        Anthropic's own documentation defines the context window plainly: it's "all the text a language
+        model can reference when generating a response... a 'working memory' for the model," distinct
+        from the training data baked into the weights. Every message, tool call, and document in a
+        conversation accumulates inside it turn by turn, and current models can hold a lot — Claude Sonnet
+        5, Opus 5, and Fable 5 carry a 1M-token window by default at standard pricing, while Claude Haiku
+        4.5 carries 200K.
+      </p>
+      <p>
+        That capacity is real, but it's scoped to the conversation it belongs to. Close the chat, start a
+        new one, or let a long agent session get compacted, and whatever lived only in that window is gone
+        unless something wrote it down somewhere else first.
+      </p>
+
+      <h2>Why a bigger window doesn't solve the memory problem</h2>
+      <p>
+        It's tempting to treat a 1M-token window as "enough memory for anything" — a year of chat history
+        can fit in a single prompt, after all. Two things get in the way of that.
+      </p>
+
+      <h3>Context rot</h3>
+      <p>
+        Anthropic's own guidance on long-context prompting warns that accuracy and recall degrade as token
+        count grows, a pattern it calls context rot. Curating what's actually in context matters as much
+        as how much room there is — dumping an entire history back into every new conversation makes
+        Claude's job harder, not easier.
+      </p>
+
+      <h3>The window is still session-bound</h3>
+      <p>
+        No matter how large the limit, a new conversation starts empty. A 1M-token budget describes how
+        much a single session can hold, not whether Claude remembers you were mid-project last Tuesday.
+        Pasting old transcripts back in to compensate burns tokens re-establishing context every single
+        time, instead of once.
+      </p>
+
+      <h2>What persistent memory adds</h2>
+      <p>
+        This is the layer Anthropic itself built to sit next to the context window rather than inside it.
+        The memory tool lets Claude create, read, update, and delete files in a <code>/memories</code>
+        directory that persists between sessions, so it can "build up knowledge over time without keeping
+        everything in the context window." Claude checks that directory before starting a task and writes
+        back what it learned — Anthropic calls this "just-in-time context retrieval," loading only what's
+        relevant instead of front-loading everything.
+      </p>
+      <p>
+        <a class="inline-link" href="https://modelcontextprotocol.io/" target="_blank" rel="noopener noreferrer">MCP</a>
+        (Model Context Protocol) is the open standard, introduced by Anthropic in November 2024, that makes
+        this pattern portable across any client instead of tying it to one vendor's file format. An MCP
+        server exposes memory as tools any MCP-compatible client can call. open-context's MCP server is a
+        concrete implementation of that: <code>save_context</code> when you say "remember this,"
+        <code>recall_context</code> and <code>search_contexts</code> to pull it back later,
+        <code>update_context</code> and <code>delete_context</code> to keep it current, plus bubble tools
+        to group related contexts into project workspaces (see our post on
+        <a class="inline-link" href="/blog/bubbles-project-workspaces/">organizing memory with bubbles</a>).
+        None of it depends on the context window at all — it's a database call, not a token.
+      </p>
+
+      <h2>How the two work together in one session</h2>
+      <p>In practice, a well-built Claude Code or Claude Desktop setup runs both layers on every turn:</p>
+      <ol>
+        <li><strong>Session starts.</strong> Claude checks what's already saved — <code>list_contexts</code>, <code>recall_context</code>, or a memory-file <code>view</code> — before doing anything else.</li>
+        <li><strong>Relevant facts load into the context window.</strong> Only what's needed for the task at hand enters working memory, not the entire history.</li>
+        <li><strong>Claude works the problem</strong> inside the window it has for this turn.</li>
+        <li><strong>Before the session ends,</strong> anything worth keeping gets written back out — <code>save_context</code> or <code>update_context</code> for open-context, a memory-file edit for Anthropic's own tool.</li>
+      </ol>
+      <p>
+        The context window handles reasoning over what's active right now. The persistent store handles
+        everything that needs to outlive the conversation. Skip the second layer, and every new chat
+        starts from zero no matter how big the window is.
+      </p>
+
+      <h2>Setting this up with open-context</h2>
+      <p>
+        open-context ships this as a local-first MCP server: six context tools plus bubble tools for
+        project grouping, running against a store you pick — the default is a zero-config JSON file at
+        <code>~/.opencontext/contexts.json</code>, with SQLite, Postgres, MongoDB, Redis, and ten other
+        backends available through the same interface (see
+        <a class="inline-link" href="/blog/sqlite-vs-postgres-mcp-store/">choosing between SQLite and Postgres</a>
+        for when that switch is worth it). Connect it to Claude Code or Claude Desktop by pointing at
+        <code>dist/mcp/index.js</code>, or run the bundled Docker image
+        (<a class="inline-link" href="/blog/docker-mcp-server-setup/">running an MCP server in Docker</a>
+        walks through both). Nothing leaves your machine: the server only talks to the database you
+        configured, and credentials are redacted from every log line and API response.
+      </p>
+
+      <h2>Which one you actually need</h2>
+      <p>
+        For a single task inside one conversation — debug this function, review this document — the
+        context window alone is enough; there's nothing to remember afterward. Persistent memory earns its
+        keep the moment work spans more than one session: a multi-day project, a preference you want
+        Claude to honor automatically from now on, or a team's shared context that shouldn't live in any
+        one person's chat history. Most real Claude usage is a mix of both, which is exactly why Anthropic
+        ships a memory tool at all instead of just shipping bigger windows.
+      </p>
+
+      <div class="cta">
+        <p style="margin:0; color: var(--muted);">Give Claude persistent memory that outlives the context window.</p>
+        <a href="/">Get started with open-context →</a>
+      </div>
+
+      <h2>FAQ</h2>
+
+      <h3>What is a context window, in plain terms?</h3>
+      <p>It's the "working memory" for one Claude conversation — every message, tool result, and document Claude has seen in the current session, up to a per-model token limit (1M tokens on Claude Sonnet 5 and Opus 5, 200K on Claude Haiku 4.5). It resets when the conversation ends.</p>
+
+      <h3>Does a 1M-token context window mean Claude remembers me across sessions?</h3>
+      <p>No. The token limit describes how much one conversation can hold, not whether that information survives into a new one. A fresh chat starts empty regardless of window size unless something — a memory tool, an MCP server, or you pasting old context back in — carries it forward.</p>
+
+      <h3>What's the difference between Anthropic's memory tool and an MCP server like open-context's?</h3>
+      <p>Both persist information outside the context window between sessions. Anthropic's memory tool is a file-based capability built into the Claude API itself; an MCP server like open-context is a separate, open-standard service any MCP-compatible client can connect to, with its own storage (JSON, SQLite, Postgres, and more) that you control.</p>
+
+      <h3>Does giving Claude more context always make its answers better?</h3>
+      <p>No. Anthropic's own documentation describes "context rot" — accuracy and recall degrading as token count grows, even within the model's limit. Curating what's relevant matters more than maximizing how much is loaded in.</p>
+
+      <h3>Do I need to run a database to get persistent memory with open-context?</h3>
+      <p>No. The default store is a single JSON file with zero configuration. You only need a database if you outgrow that — thousands of saved contexts, or multiple machines sharing one memory store — and switching later doesn't require re-architecting anything.</p>
+    </article>
+  </main>
+
+  <footer>
+    <span>open-context.dev — open source, self-hosted</span>
+    <div>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://hub.docker.com/r/adityakarnam/opencontext" target="_blank" rel="noopener noreferrer">Docker Hub</a>
+    </div>
+  </footer>
+</body>
+</html>
