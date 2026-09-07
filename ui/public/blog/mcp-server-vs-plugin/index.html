@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="icon" type="image/png" href="/opencontext-logo.png" />
+  <title>MCP Server vs. Browser Extension: Why open-context Chose MCP</title>
+  <meta name="description" content="A browser extension reads every page by default; an MCP server only runs for hosts you configure. Why open-context is an MCP server, not a browser extension." />
+  <link rel="canonical" href="https://open-context.dev/blog/mcp-server-vs-plugin/" />
+  <meta property="og:title" content="MCP Server vs. Browser Extension: Why open-context Chose MCP" />
+  <meta property="og:description" content="A browser extension reads every page by default; an MCP server only runs for hosts you configure. Why open-context is an MCP server, not a browser extension." />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content="https://open-context.dev/blog/mcp-server-vs-plugin/" />
+  <meta property="og:image" content="https://open-context.dev/opencontext-logo.png" />
+  <meta property="article:published_time" content="2026-09-07" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="MCP Server vs. Browser Extension: Why open-context Chose MCP" />
+  <meta name="twitter:description" content="Why open-context ships an MCP server instead of a browser extension for giving Claude persistent memory." />
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BlogPosting",
+        "headline": "MCP Server vs. Browser Extension: Why open-context Chose MCP",
+        "description": "A browser extension reads every page by default; an MCP server only runs for hosts you configure. Why open-context is an MCP server, not a browser extension.",
+        "datePublished": "2026-09-07",
+        "dateModified": "2026-09-07",
+        "mainEntityOfPage": { "@type": "WebPage", "@id": "https://open-context.dev/blog/mcp-server-vs-plugin/" },
+        "image": "https://open-context.dev/opencontext-logo.png",
+        "author": { "@type": "Organization", "name": "open-context", "url": "https://open-context.dev/" },
+        "publisher": {
+          "@type": "Organization",
+          "name": "open-context",
+          "logo": { "@type": "ImageObject", "url": "https://open-context.dev/opencontext-logo.png" }
+        }
+      },
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is an MCP server the same thing as a browser extension?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. A browser extension installs into your browser and can read or modify pages you visit, subject to the permissions it requests. An MCP server is a separate local process that a specific host application — like Claude Code or Claude Desktop — connects to over stdio or HTTP, using a typed set of tools you define. It has no access to your browser or your other tabs at all." }
+          },
+          {
+            "@type": "Question",
+            "name": "Does open-context's MCP server need any browser permissions?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. The MCP server (src/mcp/) runs as a standalone Node.js process launched by Claude Code or Claude Desktop over stdio. It never touches a browser, requests no page permissions, and can't read anything outside the context store it manages." }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I still use open-context through a browser?",
+            "acceptedAnswer": { "@type": "Answer", "text": "Yes. The web UI is a separate piece — a self-hosted dashboard you open at localhost:3000 for importing conversations, editing preferences, and browsing saved context. It talks to open-context's own REST API, not to Claude, and it isn't a browser extension either." }
+          },
+          {
+            "@type": "Question",
+            "name": "Does MCP only work with Claude?",
+            "acceptedAnswer": { "@type": "Answer", "text": "MCP started as an Anthropic project but is now an open standard maintained independently. OpenAI's ChatGPT, Google DeepMind's tooling, and Microsoft Copilot have all added MCP client support, so an MCP server like open-context's can in principle be reused by any compatible host, not just Claude." }
+          },
+          {
+            "@type": "Question",
+            "name": "Is open-context affiliated with Anthropic?",
+            "acceptedAnswer": { "@type": "Answer", "text": "No. open-context is an independent, community-built, open source tool. It is not affiliated with, endorsed by, or built by Anthropic." }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+  <style>
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Regular-Trial-BF63f6cbd970ee9.otf') format('opentype'); font-weight: 400; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Medium-Trial-BF63f6cbdb24b6d.otf') format('opentype'); font-weight: 500; font-style: normal; }
+    @font-face { font-family: 'Styrene A'; src: url('/styrene-font-family/StyreneA-Bold-Trial-BF63f6cbda1877f.otf') format('opentype'); font-weight: 700; font-style: normal; }
+
+    :root {
+      --bg: #000000;
+      --card: #0a0a0a;
+      --border: #262626;
+      --fg: #fafafa;
+      --muted: #a1a1aa;
+      --accent: #4ade80;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Styrene A', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      line-height: 1.7;
+    }
+    a { color: inherit; }
+    header {
+      position: sticky; top: 0; z-index: 40;
+      display: flex; align-items: center; gap: 1.5rem;
+      padding: 0.9rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,0.9);
+      backdrop-filter: blur(6px);
+    }
+    header .brand { display: flex; align-items: center; gap: 0.5rem; margin-right: auto; text-decoration: none; }
+    header .brand img { width: 32px; height: 32px; border-radius: 3px; }
+    header .brand span { font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em; }
+    header nav { display: flex; align-items: center; gap: 1.5rem; font-size: 0.875rem; color: var(--muted); }
+    header nav a { text-decoration: none; }
+    header nav a:hover, header nav a.active { color: var(--fg); }
+
+    main { max-width: 720px; margin: 0 auto; padding: 3rem 1.5rem 5rem; }
+    .meta { font-size: 0.8rem; color: var(--muted); font-family: monospace; margin-bottom: 0.75rem; }
+    h1 { font-size: 2.1rem; font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; margin: 0 0 1.5rem; }
+    h2 { font-size: 1.4rem; font-weight: 600; letter-spacing: -0.01em; margin: 2.5rem 0 1rem; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin: 1.75rem 0 0.6rem; }
+    p { color: #e4e4e7; margin: 0 0 1.1rem; }
+    p.lead { font-size: 1.1rem; color: var(--fg); }
+    ul, ol { color: #e4e4e7; padding-left: 1.3rem; margin: 0 0 1.1rem; }
+    li { margin-bottom: 0.4rem; }
+    code { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 0.1rem 0.4rem; font-size: 0.85em; }
+    pre { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; overflow-x: auto; font-size: 0.85rem; }
+    pre code { border: none; padding: 0; background: none; }
+    a.inline-link { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+    .takeaways {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin: 1.5rem 0 2.5rem;
+    }
+    .takeaways p.label { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.7rem; color: var(--accent); font-weight: 600; margin: 0 0 0.75rem; }
+    .takeaways ul { margin: 0; }
+    .table-wrap { overflow-x: auto; margin: 0 0 1.1rem; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+    th { color: var(--muted); font-weight: 600; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+    .cta {
+      border: 1px solid var(--border);
+      background: var(--card);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin: 2.5rem 0;
+      text-align: center;
+    }
+    .cta a {
+      display: inline-block;
+      margin-top: 0.75rem;
+      background: var(--fg);
+      color: #000;
+      font-weight: 600;
+      padding: 0.55rem 1.25rem;
+      border-radius: 6px;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem; display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 0.75rem;
+      font-size: 0.75rem; color: var(--muted);
+    }
+    footer a { text-decoration: none; margin-left: 1rem; }
+    footer a:hover { color: var(--fg); }
+  </style>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/">
+      <img src="/opencontext-logo.png" alt="open-context" />
+      <span>open-context</span>
+    </a>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/blog/" class="active">Blog</a>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <article>
+      <div class="meta">September 7, 2026 · 6 min read</div>
+      <h1>MCP Server vs. Browser Extension: Why open-context Chose MCP</h1>
+
+      <p class="lead">
+        A browser extension gets standing access to every page you load the moment you install it. An
+        MCP server only runs when a host application you explicitly configure — Claude Code, Claude
+        Desktop — starts it, and it exposes a fixed, typed set of tools instead of reading your screen.
+        That difference in access model, not developer convenience, is why
+        <a class="inline-link" href="/">open-context</a> ships as an MCP server rather than a
+        browser extension.
+      </p>
+
+      <div class="takeaways">
+        <p class="label">Key takeaways</p>
+        <ul>
+          <li>Browser extensions request broad, standing permissions at install time and can read or modify any page that matches their manifest — even ones unrelated to their stated purpose.</li>
+          <li>An MCP server only runs when a host you configure launches it, and it can only do what the tools it defines allow — nothing more.</li>
+          <li>open-context's MCP server (<code>src/mcp/</code>) connects to Claude Code and Claude Desktop over stdio and exposes six tools: <code>save_context</code>, <code>recall_context</code>, <code>list_contexts</code>, <code>search_contexts</code>, <code>update_context</code>, and <code>delete_context</code>.</li>
+          <li>MCP is an open standard, not a Claude-only feature — ChatGPT, Google DeepMind's tooling, and Microsoft Copilot have all added MCP client support.</li>
+          <li>The web UI still exists for people who prefer a browser — but it's a self-hosted dashboard talking to open-context's own API, not an extension living inside someone else's browser session.</li>
+        </ul>
+      </div>
+
+      <h2>What "give an AI persistent memory" actually requires</h2>
+      <p>
+        For Claude to save and recall context across conversations, something has to sit between Claude
+        and a storage layer, expose a way to write and read from it, and do so without becoming a
+        liability the rest of the time. There are really only two shapes that "something" can take:
+        code that runs inside your browser and watches pages, or a separate process that a host
+        application talks to directly. open-context is built as the second.
+      </p>
+
+      <h2>How a browser extension would work — and where it breaks down</h2>
+      <p>
+        A memory extension would inject a content script into claude.ai, watch the DOM for new messages,
+        and ship them off to local storage or a background script. It's a workable pattern for browser
+        automation, but it comes with three structural costs that don't go away with careful engineering.
+      </p>
+
+      <h3>Standing, broad permissions</h3>
+      <p>
+        Chrome's Manifest V3 tightened extension permissions considerably, but independent security
+        research still finds that most popular extensions request more access than their stated function
+        needs, and that MV3's install-time permission model leaves most of the actual risk concentrated
+        at the moment you click "Add extension" — before you've seen it do anything
+        (<a class="inline-link" href="https://deepstrike.io/blog/chrome-extensions-security-threats-risk-analysis" target="_blank" rel="noopener noreferrer">Chrome Extensions Security Threats: Risk Analysis, DeepStrike</a>).
+        A memory extension that needs to read your Claude conversations to save them is, by construction,
+        an extension that can read your Claude conversations at any time — not just when you ask it to
+        remember something.
+      </p>
+
+      <h3>Fragile to page changes, opaque to the host</h3>
+      <p>
+        DOM scraping breaks the moment claude.ai changes its markup, and there's no contract the
+        extension and the page agree on — it's reverse-engineering, redone on every UI update. Claude
+        itself also has no idea the extension exists; it can't call it, ask it a question, or get a
+        typed response back. Everything has to be inferred from what shows up on screen.
+      </p>
+
+      <h3>No structured tool-calling contract</h3>
+      <p>
+        The most useful version of "remember this" isn't "scrape whatever's visible" — it's Claude
+        deciding, mid-conversation, to call a <code>save_context</code> tool with specific content and
+        tags, and later calling <code>recall_context</code> with a query. That requires a contract Claude
+        can actually invoke, which a passive browser script doesn't provide.
+      </p>
+
+      <h2>How MCP scopes access differently</h2>
+      <p>
+        The <a class="inline-link" href="https://modelcontextprotocol.io/" target="_blank" rel="noopener noreferrer">Model Context Protocol</a>
+        is the open standard Anthropic introduced in late 2024 specifically to solve this class of
+        problem: connecting AI systems to external tools and data sources without every integration
+        being a bespoke, over-permissioned hack
+        (<a class="inline-link" href="https://www.anthropic.com/news/model-context-protocol" target="_blank" rel="noopener noreferrer">Introducing the Model Context Protocol, Anthropic</a>).
+        Two design choices make the difference concrete.
+      </p>
+
+      <h3>Explicit host configuration, not automatic injection</h3>
+      <p>
+        An MCP server doesn't install itself into every session by default. You add it to
+        <code>~/.claude/settings.json</code> or Claude Desktop's config with an explicit command and
+        arguments. Nothing runs until that specific host starts that specific process — there's no
+        equivalent of a content script silently attaching to every tab.
+      </p>
+
+      <h3>A typed tool contract instead of screen-scraping</h3>
+      <p>
+        open-context's server (<code>src/mcp/server.ts</code>) defines each tool with a Zod schema —
+        <code>save_context</code> takes <code>content</code>, optional <code>tags</code>, and an
+        optional <code>bubbleId</code>; <code>recall_context</code> takes a <code>query</code> string —
+        and nothing else is reachable. Claude sees exactly six context tools plus five bubble-management
+        tools, each with a defined input and output shape. There's no DOM to scrape and nothing to break
+        when claude.ai's frontend changes, because the server never touches the frontend at all — it
+        talks to Claude over stdio, one JSON-RPC message at a time.
+      </p>
+
+      <h2>Why this matters more once you look at what it's protecting</h2>
+      <p>
+        The context an MCP memory server holds is often more sensitive than a single page view — it's a
+        standing record of what you've told Claude about your work, your projects, and your preferences
+        over time. open-context stores that locally by default (<code>~/.opencontext/contexts.json</code>,
+        or any of 15 supported databases via BYODB), and the MCP transport itself adds no network
+        exposure: a stdio-based server has no listening port for anything to attack. That's a narrower,
+        more auditable surface than a browser extension that runs continuously across every site you
+        visit. For more on where the remaining risk actually sits, see
+        <a class="inline-link" href="/blog/mcp-server-security/">Securing a Local MCP Server</a>.
+      </p>
+
+      <h2>The tradeoff: MCP still needs a compatible host</h2>
+      <p>
+        None of this makes MCP strictly better in every dimension — it makes a different tradeoff.
+        A browser extension works inside any site your browser can load, with no cooperation from that
+        site required. An MCP server only works with a host application that implements the MCP client
+        side of the protocol. That used to mean Claude Code and Claude Desktop specifically; it no longer
+        does. OpenAI's ChatGPT, Google DeepMind's agent tooling, and Microsoft's Copilot have all shipped
+        MCP client support since, which is the direct result of MCP being donated as an open standard
+        rather than kept as a Claude-only feature. The access model that made sense for one host now
+        generalizes to several.
+      </p>
+
+      <div class="cta">
+        <p style="margin:0; color: var(--muted);">Give Claude persistent memory without installing anything into your browser.</p>
+        <a href="/">Set up the open-context MCP server →</a>
+      </div>
+
+      <h2>FAQ</h2>
+
+      <h3>Is an MCP server the same thing as a browser extension?</h3>
+      <p>No. A browser extension installs into your browser and can read or modify pages you visit, subject to the permissions it requests. An MCP server is a separate local process that a specific host application — like Claude Code or Claude Desktop — connects to over stdio or HTTP, using a typed set of tools you define. It has no access to your browser or your other tabs at all.</p>
+
+      <h3>Does open-context's MCP server need any browser permissions?</h3>
+      <p>No. The MCP server (<code>src/mcp/</code>) runs as a standalone Node.js process launched by Claude Code or Claude Desktop over stdio. It never touches a browser, requests no page permissions, and can't read anything outside the context store it manages.</p>
+
+      <h3>Can I still use open-context through a browser?</h3>
+      <p>Yes. The web UI is a separate piece — a self-hosted dashboard you open at localhost:3000 for importing conversations, editing preferences, and browsing saved context. It talks to open-context's own REST API, not to Claude, and it isn't a browser extension either.</p>
+
+      <h3>Does MCP only work with Claude?</h3>
+      <p>MCP started as an Anthropic project but is now an open standard maintained independently. OpenAI's ChatGPT, Google DeepMind's tooling, and Microsoft Copilot have all added MCP client support, so an MCP server like open-context's can in principle be reused by any compatible host, not just Claude.</p>
+
+      <h3>Is open-context affiliated with Anthropic?</h3>
+      <p>No. open-context is an independent, community-built, open source tool. It is not affiliated with, endorsed by, or built by Anthropic.</p>
+    </article>
+  </main>
+
+  <footer>
+    <span>open-context.dev — open source, self-hosted</span>
+    <div>
+      <a href="https://github.com/adityak74/open-context" target="_blank" rel="noopener noreferrer">GitHub</a>
+      <a href="https://hub.docker.com/r/adityakarnam/opencontext" target="_blank" rel="noopener noreferrer">Docker Hub</a>
+    </div>
+  </footer>
+</body>
+</html>

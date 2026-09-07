@@ -1,6 +1,12 @@
 {
   "posts": [
     {
+      "slug": "mcp-server-vs-plugin",
+      "title": "MCP Server vs. Browser Extension: Why open-context Chose MCP",
+      "publishedAt": "2026-09-07",
+      "topicTag": "mcp-server-vs-plugin"
+    },
+    {
       "slug": "context-window-vs-memory",
       "title": "Context Window vs. Persistent Memory: Why Claude Needs Both",
       "publishedAt": "2026-09-05",
@@ -98,7 +104,6 @@
     }
   ],
   "backlog": [
-    { "topicTag": "mcp-server-vs-plugin", "workingTitle": "MCP Server vs. Browser Extension: Why open-context Chose MCP" },
     { "topicTag": "team-shared-ai-memory", "workingTitle": "Should a Team Share One MCP Context Store? Tradeoffs and Setup" },
     { "topicTag": "redis-mongodb-mcp-store", "workingTitle": "Redis or MongoDB for MCP Memory: Picking a Document Backend" }
   ]
